@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QLabel,
 )
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QShortcut, QKeySequence
 
 from src.ui.dashboard import DashboardWidget
 from src.ui.do_table import DOTableWidget
@@ -58,10 +59,164 @@ _NAV_ITEMS = [
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        # ── Dark theme stylesheet ──────────────────────────────────────────
+        self.setStyleSheet("""
+            QMainWindow, QWidget {
+                background-color: #1a1a2e;
+                color: #e0e0e0;
+                font-family: "Segoe UI", Arial, sans-serif;
+            }
+            QStackedWidget, QScrollArea, QAbstractScrollArea {
+                background-color: #1a1a2e;
+                border: none;
+            }
+            QTableWidget, QTableView {
+                background-color: #16213e;
+                color: #e0e0e0;
+                gridline-color: #2a2a4a;
+                selection-background-color: #3b82f6;
+                selection-color: #ffffff;
+                border: 1px solid #2a2a4a;
+            }
+            QTableWidget::item, QTableView::item {
+                padding: 4px 8px;
+            }
+            QHeaderView::section {
+                background-color: #0f3460;
+                color: #e0e0e0;
+                padding: 6px 8px;
+                border: none;
+                border-right: 1px solid #2a2a4a;
+                font-weight: bold;
+            }
+            QPushButton {
+                background-color: #3b82f6;
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #2563eb;
+            }
+            QPushButton:pressed {
+                background-color: #1d4ed8;
+            }
+            QPushButton:disabled {
+                background-color: #374151;
+                color: #6b7280;
+            }
+            QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox, QDateEdit, QComboBox {
+                background-color: #16213e;
+                color: #e0e0e0;
+                border: 1px solid #2a2a4a;
+                border-radius: 4px;
+                padding: 6px 8px;
+            }
+            QLineEdit:focus, QTextEdit:focus, QPlainTextEdit:focus,
+            QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus, QComboBox:focus {
+                border: 1px solid #3b82f6;
+            }
+            QComboBox::drop-down {
+                border: none;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #16213e;
+                color: #e0e0e0;
+                selection-background-color: #3b82f6;
+            }
+            QLabel {
+                color: #e0e0e0;
+                background-color: transparent;
+            }
+            QGroupBox {
+                color: #e0e0e0;
+                border: 1px solid #2a2a4a;
+                border-radius: 6px;
+                margin-top: 12px;
+                padding-top: 8px;
+            }
+            QGroupBox::title {
+                subcontrol-origin: margin;
+                left: 10px;
+                padding: 0 4px;
+                color: #93c5fd;
+            }
+            QTabWidget::pane {
+                background-color: #1a1a2e;
+                border: 1px solid #2a2a4a;
+            }
+            QTabBar::tab {
+                background-color: #16213e;
+                color: #9ca3af;
+                padding: 8px 16px;
+                border: 1px solid #2a2a4a;
+                border-bottom: none;
+            }
+            QTabBar::tab:selected {
+                background-color: #1a1a2e;
+                color: #e0e0e0;
+                border-top: 2px solid #3b82f6;
+            }
+            QScrollBar:vertical {
+                background-color: #16213e;
+                width: 10px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:vertical {
+                background-color: #374151;
+                border-radius: 5px;
+                min-height: 20px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background-color: #4b5563;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0;
+            }
+            QScrollBar:horizontal {
+                background-color: #16213e;
+                height: 10px;
+                border-radius: 5px;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: #374151;
+                border-radius: 5px;
+                min-width: 20px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background-color: #4b5563;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0;
+            }
+            QDialog {
+                background-color: #1a1a2e;
+                color: #e0e0e0;
+            }
+            QMessageBox {
+                background-color: #1a1a2e;
+                color: #e0e0e0;
+            }
+            QStatusBar {
+                background-color: #0f3460;
+                color: #9ca3af;
+            }
+            QToolTip {
+                background-color: #16213e;
+                color: #e0e0e0;
+                border: 1px solid #3b82f6;
+                padding: 4px;
+            }
+        """)
+
         self.setWindowTitle("Lead Time App")
         self.resize(1100, 680)
         self._active_btn = None
         self._build_ui()
+        self._setup_shortcuts()
 
     # ------------------------------------------------------------------
     def _build_ui(self):
@@ -109,6 +264,27 @@ class MainWindow(QMainWindow):
 
         # activate Dashboard by default
         self._navigate(0, self._nav_buttons[0])
+
+    # ------------------------------------------------------------------
+    def _setup_shortcuts(self):
+        """Keyboard shortcuts for sidebar navigation."""
+        mapping = [
+            ("Ctrl+1", 0, self._nav_buttons[0]),       # Dashboard
+            ("Ctrl+2", 1, self._nav_buttons[1]),       # Data DO
+            ("Ctrl+3", 2, self._nav_buttons[3]),       # Import
+            ("Ctrl+4", 3, self._nav_buttons[4]),       # Laporan
+            ("Ctrl+5", 4, self._nav_buttons[5]),       # Pengaturan
+        ]
+        for key, idx, btn in mapping:
+            sc = QShortcut(QKeySequence(key), self)
+            sc.activated.connect(lambda i=idx, b=btn: self._navigate(i, b))
+
+        # Ctrl+N = New DO (dialog)
+        sc_new = QShortcut(QKeySequence("Ctrl+N"), self)
+        sc_new.activated.connect(lambda: self._navigate(None, self._nav_buttons[2]))
+
+        # Ctrl+Q = Quit
+        QShortcut(QKeySequence("Ctrl+Q"), self).activated.connect(self.close)
 
     # ------------------------------------------------------------------
     def _navigate(self, page_idx, btn: QPushButton):

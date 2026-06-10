@@ -21,6 +21,7 @@ from PySide6.QtCore import QDate, QTime, Qt
 class DOFormDialog(QDialog):
     def __init__(self, parent=None, record=None):
         super().__init__(parent)
+        self._record = record
         self.setWindowTitle("Input DO" if record is None else "Edit DO")
         self.setMinimumWidth(480)
         self._build_ui()
@@ -150,21 +151,74 @@ class DOFormDialog(QDialog):
         self.lbl_shift.setText(f"Shift: {shift}")
 
     # ------------------------------------------------------------------
-    def _on_save(self):
-        missing = []
-        if not self.no_do.text().strip():
-            missing.append("No. DO")
-        if not self.no_shipment.text().strip():
-            missing.append("No. Shipment")
+    def _validate_form(self) -> bool:
+        from src.core.models import DORecord
 
+        # --- required fields ---
+        required = {
+            "Tanggal": self.tgl.date().toString("yyyy-MM-dd"),
+            "No. DO": self.no_do.text().strip(),
+            "No. Shipment": self.no_shipment.text().strip(),
+            "Customer": self.customer.text().strip(),
+            "Loading Mulai": self.loading_mulai.time().toString("HH:mm"),
+            "Loading Selesai": self.loading_selesai.time().toString("HH:mm"),
+        }
+        missing = [label for label, val in required.items() if not val]
         if missing:
             QMessageBox.warning(
                 self,
                 "Validasi",
                 "Field wajib belum diisi:\n• " + "\n• ".join(missing),
             )
-            return
+            return False
 
+        # --- loading time check ---
+        mulai = self.loading_mulai.time()
+        selesai = self.loading_selesai.time()
+        s = mulai.hour() * 60 + mulai.minute()
+        e = selesai.hour() * 60 + selesai.minute()
+        if e <= s:
+            QMessageBox.warning(
+                self,
+                "Validasi",
+                "Loading Selesai harus lebih besar dari Loading Mulai.\n"
+                "(Untuk overnight, fitur belum didukung.)",
+            )
+            return False
+
+        # --- no_do duplicate check ---
+        no_do_val = self.no_do.text().strip()
+        query = DORecord.select().where(DORecord.no_do == no_do_val)
+        if self._record is not None:
+            query = query.where(DORecord.id != self._record.id)
+        if query.exists():
+            QMessageBox.warning(
+                self,
+                "Validasi",
+                f"No. DO '{no_do_val}' sudah ada. Gunakan nomor lain.",
+            )
+            return False
+
+        # --- string length truncation ---
+        _str_fields = [
+            (self.no_do, 50),
+            (self.no_shipment, 50),
+            (self.customer, 100),
+            (self.kota_kab, 100),
+            (self.ekspedisi, 100),
+            (self.jenis_truk, 50),
+            (self.nomor_fk, 50),
+        ]
+        for widget, max_len in _str_fields:
+            if len(widget.text()) > max_len:
+                widget.setText(widget.text()[:max_len])
+
+        return True
+
+    # ------------------------------------------------------------------
+    def _on_save(self):
+        if not self._validate_form():
+            return
         self.accept()
 
     # ------------------------------------------------------------------

@@ -1,34 +1,69 @@
+"""Database connection and initialization — SQLite with WAL mode."""
 import os
-from peewee import SqliteDatabase
+import logging
+from peewee import SqliteDatabase, OperationalError
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = os.environ.get(
     "LEADTIME_DB_PATH",
     os.path.join(os.path.dirname(__file__), "..", "..", "data", "leadtime.db"),
 )
 
-database = SqliteDatabase(
-    None,
-    pragmas={
-        "journal_mode": "wal",
-        "foreign_keys": 1,
-        "cache_size": -32 * 1024,
-    },
-)
+database = SqliteDatabase(None)
 
 
-def init_db(path: str = DB_PATH) -> None:
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    database.init(path)
-    database.connect(reuse_if_open=True)
+def init_db():
+    """Initialize database connection and create tables if needed."""
+    db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+    try:
+        os.makedirs(db_dir, exist_ok=True)
+    except OSError as e:
+        logger.critical(f"Gagal membuat direktori database {db_dir}: {e}")
+        raise RuntimeError(f"Tidak dapat membuat direktori database: {e}") from e
+
+    try:
+        database.init(
+            DB_PATH,
+            pragmas={
+                "journal_mode": "wal",
+                "foreign_keys": 1,
+                "cache_size": -64000,
+                "synchronous": "normal",
+                "busy_timeout": 5000,
+            },
+        )
+        logger.info(f"Database terhubung: {DB_PATH} (WAL mode)")
+    except OperationalError as e:
+        logger.critical(f"Gagal inisialisasi database {DB_PATH}: {e}")
+        raise RuntimeError(f"Tidak dapat terhubung ke database: {e}") from e
+
     _create_tables()
 
 
-def _create_tables() -> None:
+def _create_tables():
+    """Create all tables if they do not exist."""
     from src.core.models import DORecord
 
-    database.create_tables([DORecord], safe=True)
+    try:
+        database.connect(reuse_if_open=True)
+        database.create_tables([DORecord], safe=True)
+        from src.core.migration import run_migrations
+        run_migrations()
+        logger.info("Tabel database siap")
+    except OperationalError as e:
+        logger.error(f"Gagal membuat tabel: {e}")
+        raise
+    finally:
+        if not database.is_closed():
+            database.close()
 
 
-def close_db() -> None:
-    if not database.is_closed():
-        database.close()
+def close_db():
+    """Close database connection gracefully."""
+    try:
+        if not database.is_closed():
+            database.close()
+            logger.debug("Database connection closed")
+    except Exception as e:
+        logger.warning(f"Error saat menutup database: {e}")
