@@ -190,7 +190,7 @@ class DashboardWidget(QWidget):
     def _build_cards_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
         row.setSpacing(16)
-        self._card_do = _SummaryCard("Total DO Hari Ini", "📦", "#3b82f6")
+        self._card_do = _SummaryCard("Total DO", "📦", "#3b82f6")
         self._card_tonase = _SummaryCard("Total Tonase", "⚖️", "#10b981")
         self._card_leadtime = _SummaryCard("Rata-rata Lead Time", "⏱️", "#f59e0b")
         for card in (self._card_do, self._card_tonase, self._card_leadtime):
@@ -233,11 +233,23 @@ class DashboardWidget(QWidget):
 
         row.addStretch()
 
-        # defaults: 30 hari terakhir
+        # defaults: ambil dari range data di DB, fallback 30 hari
         today = QDate.currentDate()
-        self._date_to.setDate(today)
-        self._date_from.setDate(today.addDays(-29))
-        self._combo_preset.setCurrentText("30 Hari")
+        try:
+            from src.core.models import DORecord
+            from peewee import fn as _fn
+            db_first = DORecord.select(_fn.MIN(DORecord.tgl)).scalar()
+            db_last = DORecord.select(_fn.MAX(DORecord.tgl)).scalar()
+            if db_first and db_last:
+                self._date_from.setDate(QDate(db_first.year, db_first.month, db_first.day))
+                self._date_to.setDate(QDate(db_last.year, db_last.month, db_last.day))
+            else:
+                self._date_to.setDate(today)
+                self._date_from.setDate(today.addDays(-29))
+        except Exception:
+            self._date_to.setDate(today)
+            self._date_from.setDate(today.addDays(-29))
+        self._combo_preset.setCurrentText("Custom")
 
         self._combo_preset.currentTextChanged.connect(self._on_preset_changed)
         self._date_from.dateChanged.connect(self._on_custom_date_changed)
@@ -334,17 +346,16 @@ class DashboardWidget(QWidget):
 
     def _load_data(self):
         d_from, d_to = self._date_range()
-        today = date.today()
 
         # --- cards ---
-        do_today = (
+        do_total = (
             DORecord.select(fn.COUNT(DORecord.id))
-            .where(DORecord.tgl == today)
+            .where(DORecord.tgl.between(d_from, d_to))
             .scalar() or 0
         )
         self._card_do.set_value(
-            str(do_today),
-            f"Tanggal {today.strftime('%d %b %Y')}",
+            str(do_total),
+            f"{d_from.strftime('%d %b')} – {d_to.strftime('%d %b %Y')}",
         )
 
         total_tonase = (
