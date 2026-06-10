@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QPainter, QPen, QFont
 from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
@@ -21,6 +21,15 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
+)
+from PySide6.QtCharts import (
+    QBarCategoryAxis,
+    QBarSeries,
+    QBarSet,
+    QChart,
+    QChartView,
+    QLineSeries,
+    QValueAxis,
 )
 
 from src.core.report import ReportGenerator
@@ -95,6 +104,7 @@ class _Card(QFrame):
 # ---------------------------------------------------------------------------
 
 _REPORT_TYPES = [
+    "Grafik Harian",
     "Harian",
     "Mingguan",
     "Bulanan",
@@ -171,6 +181,7 @@ class ReportWidget(QWidget):
         vbox.addWidget(self._build_filter_panel())
         vbox.addLayout(self._build_cards_row())
         vbox.addWidget(self._build_table_section())
+        vbox.addWidget(self._build_chart_section())   # grafik harian
         vbox.addLayout(self._build_export_row())
         vbox.addStretch()
 
@@ -178,6 +189,53 @@ class ReportWidget(QWidget):
         root.addWidget(scroll)
 
         self._on_type_changed(self._combo_type.currentText())
+
+    def _build_chart_section(self) -> QWidget:
+        """Container untuk dua grafik (Tonase+DO per Shift, Trend Delivery)."""
+        self._chart_container = QWidget()
+        self._chart_container.setVisible(False)
+
+        vbox = QVBoxLayout(self._chart_container)
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.setSpacing(16)
+
+        # --- Grafik 1: Tonase & Total DO per Shift ---
+        frame1 = QFrame()
+        frame1.setStyleSheet("QFrame { background:#FFFFFF; border-radius:10px; border:1px solid #E2E8F0; }")
+        _drop_shadow(frame1, blur=10, dy=2, alpha=25)
+        lay1 = QVBoxLayout(frame1)
+        lay1.setContentsMargins(8, 8, 8, 8)
+
+        self._chart_shift = QChart()
+        self._chart_shift.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self._chart_shift.setBackgroundVisible(False)
+
+        self._view_shift = QChartView(self._chart_shift)
+        self._view_shift.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._view_shift.setMinimumHeight(380)
+        self._view_shift.setStyleSheet("background: transparent;")
+        lay1.addWidget(self._view_shift)
+        vbox.addWidget(frame1)
+
+        # --- Grafik 2: Trend Delivery ---
+        frame2 = QFrame()
+        frame2.setStyleSheet("QFrame { background:#FFFFFF; border-radius:10px; border:1px solid #E2E8F0; }")
+        _drop_shadow(frame2, blur=10, dy=2, alpha=25)
+        lay2 = QVBoxLayout(frame2)
+        lay2.setContentsMargins(8, 8, 8, 8)
+
+        self._chart_trend = QChart()
+        self._chart_trend.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self._chart_trend.setBackgroundVisible(False)
+
+        self._view_trend = QChartView(self._chart_trend)
+        self._view_trend.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._view_trend.setMinimumHeight(340)
+        self._view_trend.setStyleSheet("background: transparent;")
+        lay2.addWidget(self._view_trend)
+        vbox.addWidget(frame2)
+
+        return self._chart_container
 
     def _build_filter_panel(self) -> QFrame:
         frame = QFrame()
@@ -377,9 +435,10 @@ class ReportWidget(QWidget):
     # ------------------------------------------------------------------
 
     def _on_type_changed(self, rtype: str):
+        is_grafik = rtype == "Grafik Harian"
         is_harian = rtype == "Harian"
         is_bulanan = rtype == "Bulanan"
-        is_range = rtype in ("Mingguan", "Per Customer", "Per Ekspedisi")
+        is_range = rtype in ("Grafik Harian", "Mingguan", "Per Customer", "Per Ekspedisi")
 
         self._lbl_tgl.setVisible(is_harian)
         self._date_single.setVisible(is_harian)
@@ -392,6 +451,10 @@ class ReportWidget(QWidget):
         self._lbl_tahun.setVisible(is_bulanan)
         self._spin_tahun.setVisible(is_bulanan)
 
+        # Grafik hanya tampil untuk tipe Grafik Harian
+        if hasattr(self, "_chart_container"):
+            self._chart_container.setVisible(is_grafik)
+
     # ------------------------------------------------------------------
     # Generate
     # ------------------------------------------------------------------
@@ -400,7 +463,12 @@ class ReportWidget(QWidget):
         rtype = self._combo_type.currentText()
 
         try:
-            if rtype == "Harian":
+            if rtype == "Grafik Harian":
+                tgl_a = self._date_from.date().toPython()
+                tgl_b = self._date_to.date().toPython()
+                self._show_grafik_harian(tgl_a, tgl_b)
+
+            elif rtype == "Harian":
                 tgl = self._date_single.date().toPython()
                 self._show_harian(tgl)
 
@@ -428,7 +496,203 @@ class ReportWidget(QWidget):
             QMessageBox.critical(self, "Error", f"Gagal mengambil data:\n{exc}")
 
     # ------------------------------------------------------------------
-    # Report renderers
+    # Grafik Harian — tabel detail + 2 grafik
+    # ------------------------------------------------------------------
+
+    _DETAIL_COLS = [
+        ("TGL",         "tgl"),
+        ("DO",          "no_do"),
+        ("No Shipment", "no_shipment"),
+        ("Customer",    "customer"),
+        ("Kota/Kab",    "kota_kab"),
+        ("Jenis",       "jenis"),
+        ("Tonase (kg)", "tonase_total"),
+        ("Shift",       "shift"),
+    ]
+
+    def _show_grafik_harian(self, tgl_awal: date, tgl_akhir: date):
+        data = ReportGenerator.daily_detail_report(tgl_awal, tgl_akhir)
+        self._last_data = data
+
+        self._update_cards(data["total_do"], data["total_ton"], 0.0)
+        self._card_lt.set_value("—")
+
+        # --- isi tabel detail ---
+        records = data["records"]
+        cols = self._DETAIL_COLS
+        self._table.clear()
+        self._table.setColumnCount(len(cols))
+        self._table.setRowCount(len(records) + 1)  # +1 baris TOTAL
+        self._table.setHorizontalHeaderLabels([c[0] for c in cols])
+
+        jenis_colors = {"ROLL": QColor("#FFF9C4"), "SHEET": QColor("#E8F5E9")}
+        dup_no_do: set[str] = set()
+        # tandai no_do duplikat
+        from collections import Counter
+        no_do_counts = Counter(r.no_do for r in records)
+        dup_no_do = {nd for nd, cnt in no_do_counts.items() if cnt > 1}
+
+        for row_idx, rec in enumerate(records):
+            for col_idx, (_, key) in enumerate(cols):
+                val = getattr(rec, key, "")
+                if key == "tgl":
+                    text = val.strftime("%d/%m/%Y") if hasattr(val, "strftime") else str(val)
+                elif key == "tonase_total":
+                    text = f"{float(val):,.2f}"
+                elif key == "shift":
+                    text = f"Shift {val}"
+                else:
+                    text = str(val) if val is not None else "—"
+
+                item = QTableWidgetItem(text)
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
+                # highlight: no_do duplikat → kuning
+                if rec.no_do in dup_no_do:
+                    item.setBackground(QColor("#FFF59D"))
+                # warna kolom Jenis
+                elif key == "jenis":
+                    item.setBackground(jenis_colors.get(str(val).upper(), QColor("#FFFFFF")))
+
+                self._table.setItem(row_idx, col_idx, item)
+
+        # baris TOTAL
+        total_row = len(records)
+        total_font = QFont()
+        total_font.setBold(True)
+        for col_idx, (_, key) in enumerate(cols):
+            if key == "kota_kab":
+                text = "TOTAL DO"
+            elif key == "tonase_total":
+                text = f"{data['total_ton']:,.2f}"
+            elif key == "shift":
+                text = str(data["total_do"])
+            else:
+                text = ""
+            item = QTableWidgetItem(text)
+            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            item.setBackground(QColor("#FFF176"))
+            item.setFont(total_font)
+            self._table.setItem(total_row, col_idx, item)
+
+        self._table.resizeColumnsToContents()
+
+        # --- render kedua grafik ---
+        daily = data["daily_stats"]
+        date_labels = [
+            d["tgl"].strftime("%d/%m/%y") if hasattr(d["tgl"], "strftime") else str(d["tgl"])
+            for d in daily
+        ]
+        self._render_shift_bar_chart(daily, date_labels, tgl_awal, tgl_akhir)
+        self._render_trend_chart(daily, date_labels, tgl_awal, tgl_akhir)
+
+    def _render_shift_bar_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
+        """Grafik bar: SHIFT 1 DO (biru), SHIFT 1 QTY (merah), SHIFT 2 DO (abu), SHIFT 2 QTY (kuning)."""
+        chart = self._chart_shift
+        chart.removeAllSeries()
+        for ax in chart.axes():
+            chart.removeAxis(ax)
+
+        tgl_str = f"{tgl_awal.strftime('%d/%m/%y')} – {tgl_akhir.strftime('%d/%m/%y')}"
+        chart.setTitle(f"GRAFIK TONASE DAN TOTAL DO, PER SHIFT\n{tgl_str}")
+        f = QFont()
+        f.setPointSize(11)
+        f.setBold(True)
+        chart.setTitleFont(f)
+
+        set_s1_do  = QBarSet("SHIFT 1 DO");   set_s1_do.setColor(QColor("#2196F3"))
+        set_s1_qty = QBarSet("SHIFT 1 QTY");  set_s1_qty.setColor(QColor("#F44336"))
+        set_s2_do  = QBarSet("SHIFT 2 DO");   set_s2_do.setColor(QColor("#9E9E9E"))
+        set_s2_qty = QBarSet("SHIFT 2 QTY");  set_s2_qty.setColor(QColor("#FFEB3B"))
+
+        for d in daily:
+            set_s1_do.append(d["shift_1_do"])
+            set_s1_qty.append(d["shift_1_ton"])
+            set_s2_do.append(d["shift_2_do"])
+            set_s2_qty.append(d["shift_2_ton"])
+
+        series = QBarSeries()
+        series.append(set_s1_do)
+        series.append(set_s1_qty)
+        series.append(set_s2_do)
+        series.append(set_s2_qty)
+        series.setLabelsVisible(True)
+        series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+
+        chart.addSeries(series)
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append(labels)
+        lf = QFont(); lf.setPointSize(9)
+        axis_x.setLabelsFont(lf)
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(axis_x)
+
+        axis_y = QValueAxis()
+        axis_y.setTitleText("Tonase / DO Count")
+        tf = QFont(); tf.setPointSize(9)
+        axis_y.setTitleFont(tf)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_y)
+
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignRight)
+
+    def _render_trend_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
+        """Grafik line: total DO per hari dengan label nilai merah di setiap titik."""
+        chart = self._chart_trend
+        chart.removeAllSeries()
+        for ax in chart.axes():
+            chart.removeAxis(ax)
+
+        tgl_str = f"{tgl_awal.strftime('%d/%m/%y')} – {tgl_akhir.strftime('%d/%m/%y')}"
+        chart.setTitle(f"TREND DELIVERY GRAPH\n{tgl_str}")
+        f = QFont()
+        f.setPointSize(11)
+        f.setBold(True)
+        chart.setTitleFont(f)
+
+        series = QLineSeries()
+        series.setName("Total DO")
+        pen = QPen(QColor("#1565C0"))
+        pen.setWidth(2)
+        series.setPen(pen)
+
+        for i, d in enumerate(daily):
+            series.append(i, d["total_do"])
+
+        chart.addSeries(series)
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append(labels)
+        lf = QFont(); lf.setPointSize(9)
+        axis_x.setLabelsFont(lf)
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(axis_x)
+
+        all_do = [d["total_do"] for d in daily]
+        max_do = max(all_do) if all_do else 10
+        axis_y = QValueAxis()
+        axis_y.setRange(0, max_do * 1.25)
+        axis_y.setTickCount(6)
+        tf = QFont(); tf.setPointSize(9)
+        axis_y.setTitleFont(tf)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_y)
+
+        # Tampilkan label nilai di setiap titik (merah & tebal)
+        series.setPointLabelsVisible(True)
+        series.setPointLabelsColor(QColor("#E53935"))
+        lbl_font = QFont()
+        lbl_font.setPointSize(9)
+        lbl_font.setBold(True)
+        series.setPointLabelsFont(lbl_font)
+        series.setPointLabelsFormat("@yPoint")
+
+        chart.legend().hide()
+
+    # ------------------------------------------------------------------
+    # Report renderers (existing)
     # ------------------------------------------------------------------
 
     def _show_harian(self, tgl: date):

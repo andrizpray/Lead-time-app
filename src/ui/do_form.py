@@ -268,5 +268,12 @@ class DOFormDialog(QDialog):
         self.nomor_fk.setText(record.nomor_fk or "")
         self.loading_mulai.setTime(QTime.fromString(str(record.loading_mulai)[:5], "HH:mm"))
         self.loading_selesai.setTime(QTime.fromString(str(record.loading_selesai)[:5], "HH:mm"))
-        self.tonase_roll.setValue(record.tonase_roll)
-        self.tonase_sheet.setValue(record.tonase_sheet)
+
+        # Sesuaikan range spinbox dengan nilai aktual dari database,
+        # sehingga nilai berapapun yang sudah tersimpan bisa ditampilkan dan diedit.
+        roll_val = float(record.tonase_roll or 0.0)
+        sheet_val = float(record.tonase_sheet or 0.0)
+        self.tonase_roll.setRange(0, max(999999.99, roll_val))
+        self.tonase_sheet.setRange(0, max(999999.99, sheet_val))
+        self.tonase_roll.setValue(roll_val)
+        self.tonase_sheet.setValue(sheet_val)

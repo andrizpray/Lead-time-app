@@ -19,6 +19,9 @@ a = Analysis(
     ],
     hiddenimports=[
         'PySide6.QtCharts',
+        'PySide6.QtCore',
+        'PySide6.QtGui',
+        'PySide6.QtWidgets',
         'PySide6.QtPrintSupport',
         'peewee',
         'pandas',

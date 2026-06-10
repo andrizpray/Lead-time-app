@@ -5,6 +5,74 @@ from src.core.models import DORecord
 class ReportGenerator:
 
     @staticmethod
+    def daily_detail_report(tgl_awal, tgl_akhir) -> dict:
+        """
+        Laporan detail per DO dalam rentang tanggal, lengkap dengan:
+        - Baris per DO (tgl, no_do, no_shipment, customer, kota_kab, jenis, tonase_total, shift)
+        - Agregat per hari per shift (count_do, total_tonase)
+        - Total keseluruhan
+        """
+        # --- detail records ---
+        records = list(
+            DORecord.select()
+            .where(DORecord.tgl.between(tgl_awal, tgl_akhir))
+            .order_by(DORecord.tgl.asc(), DORecord.shift.asc(), DORecord.id.asc())
+        )
+
+        # --- daily per-shift aggregates ---
+        daily_shift = list(
+            DORecord.select(
+                DORecord.tgl,
+                DORecord.shift,
+                fn.COUNT(DORecord.id).alias("cnt"),
+                fn.SUM(DORecord.tonase_total).alias("sum_ton"),
+            )
+            .where(DORecord.tgl.between(tgl_awal, tgl_akhir))
+            .group_by(DORecord.tgl, DORecord.shift)
+            .order_by(DORecord.tgl.asc(), DORecord.shift.asc())
+            .namedtuples()
+        )
+
+        # Build dict: date -> {shift -> {cnt, ton}}
+        from collections import defaultdict
+        daily_map: dict = defaultdict(lambda: {1: {"cnt": 0, "ton": 0.0},
+                                                2: {"cnt": 0, "ton": 0.0},
+                                                3: {"cnt": 0, "ton": 0.0}})
+        for r in daily_shift:
+            s = r.shift or 1
+            daily_map[r.tgl][s] = {"cnt": r.cnt or 0, "ton": float(r.sum_ton or 0.0)}
+
+        # Sorted list of dates
+        sorted_dates = sorted(daily_map.keys())
+
+        daily_stats = []
+        for d in sorted_dates:
+            sh = daily_map[d]
+            daily_stats.append({
+                "tgl": d,
+                "shift_1_do":  sh[1]["cnt"],
+                "shift_1_ton": sh[1]["ton"],
+                "shift_2_do":  sh[2]["cnt"],
+                "shift_2_ton": sh[2]["ton"],
+                "shift_3_do":  sh[3]["cnt"],
+                "shift_3_ton": sh[3]["ton"],
+                "total_do":    sh[1]["cnt"] + sh[2]["cnt"] + sh[3]["cnt"],
+                "total_ton":   sh[1]["ton"] + sh[2]["ton"] + sh[3]["ton"],
+            })
+
+        total_do = sum(d["total_do"] for d in daily_stats)
+        total_ton = sum(d["total_ton"] for d in daily_stats)
+
+        return {
+            "tgl_awal": tgl_awal,
+            "tgl_akhir": tgl_akhir,
+            "records": records,
+            "daily_stats": daily_stats,
+            "total_do": total_do,
+            "total_ton": total_ton,
+        }
+
+    @staticmethod
     def daily_report(tgl) -> dict:
         rows = list(
             DORecord.select(

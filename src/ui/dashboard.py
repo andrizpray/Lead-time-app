@@ -6,7 +6,6 @@ from PySide6.QtCharts import (
     QBarSet,
     QChart,
     QChartView,
-    QHorizontalBarSeries,
     QLineSeries,
     QPieSeries,
     QValueAxis,
@@ -19,9 +18,12 @@ from PySide6.QtWidgets import (
     QFrame,
     QGraphicsDropShadowEffect,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QScrollArea,
     QSizePolicy,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -277,7 +279,7 @@ class DashboardWidget(QWidget):
         return row
 
     def _build_row4(self) -> QHBoxLayout:
-        # Tonase line (60%) | Top customer bar (40%)
+        # Tonase line (60%) | Top customer table (40%)
         row = QHBoxLayout()
         row.setSpacing(16)
 
@@ -286,10 +288,54 @@ class DashboardWidget(QWidget):
         left = _chart_frame(self._view_tonase)
         left.setMinimumHeight(280)
 
-        self._chart_cust = _make_chart("Top 10 Customer (Tonase)")
-        self._view_cust = _make_view(self._chart_cust)
-        right = _chart_frame(self._view_cust)
+        # --- tabel top 10 customer ---
+        right = QFrame()
+        right.setStyleSheet("QFrame { background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0; }")
+        _drop_shadow(right, blur=10, dy=2, alpha=25)
         right.setMinimumHeight(280)
+        right_lay = QVBoxLayout(right)
+        right_lay.setContentsMargins(12, 10, 12, 10)
+        right_lay.setSpacing(6)
+
+        title_lbl = QLabel("Top 10 Customer (Tonase)")
+        title_lbl.setStyleSheet(
+            "font-size: 11px; font-weight: bold; color: #0F172A; border: none;"
+        )
+        right_lay.addWidget(title_lbl)
+
+        self._tbl_customer = QTableWidget()
+        self._tbl_customer.setColumnCount(2)
+        self._tbl_customer.setHorizontalHeaderLabels(["Customer", "Tonase (kg)"])
+        self._tbl_customer.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._tbl_customer.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self._tbl_customer.setShowGrid(True)
+        self._tbl_customer.verticalHeader().setVisible(False)
+        self._tbl_customer.verticalHeader().setDefaultSectionSize(22)
+        self._tbl_customer.horizontalHeader().setSectionResizeMode(
+            0, QHeaderView.ResizeMode.Stretch
+        )
+        self._tbl_customer.horizontalHeader().setSectionResizeMode(
+            1, QHeaderView.ResizeMode.ResizeToContents
+        )
+        self._tbl_customer.setStyleSheet("""
+            QTableWidget {
+                border: none;
+                font-size: 11px;
+                gridline-color: #E2E8F0;
+            }
+            QHeaderView::section {
+                background-color: #F1F5F9;
+                color: #059669;
+                font-weight: 600;
+                font-size: 11px;
+                padding: 4px;
+                border-bottom: 2px solid #059669;
+                border-right: 1px solid #E2E8F0;
+            }
+            QTableWidget::item:alternate { background-color: #F8FAFC; }
+        """)
+        self._tbl_customer.setAlternatingRowColors(True)
+        right_lay.addWidget(self._tbl_customer)
 
         row.addWidget(left, 60)
         row.addWidget(right, 40)
@@ -419,7 +465,7 @@ class DashboardWidget(QWidget):
         self._render_leadtime_chart(daily)
         self._render_shift_chart(shifts)
         self._render_tonase_chart(daily)
-        self._render_customer_chart(customers)
+        self._render_customer_table(customers)
 
     # ------------------------------------------------------------------
     # Chart renderers
@@ -529,36 +575,18 @@ class DashboardWidget(QWidget):
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
 
-    def _render_customer_chart(self, rows):
-        chart = self._chart_cust
-        self._clear_chart(chart)
+    def _render_customer_table(self, rows):
+        tbl = self._tbl_customer
+        tbl.setRowCount(len(rows))
+        for row_idx, r in enumerate(rows):
+            name = str(r.customer) if r.customer else "—"
+            tonase = float(r.total or 0)
+            item_name = QTableWidgetItem(name)
+            item_name.setTextAlignment(
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            item_ton = QTableWidgetItem(f"{tonase:,.2f}")
+            item_ton.setTextAlignment(
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            tbl.setItem(row_idx, 0, item_name)
+            tbl.setItem(row_idx, 1, item_ton)
 
-        if not rows:
-            return
-
-        bar_set = QBarSet("Tonase")
-        bar_set.setColor(QColor("#f59e0b"))
-        categories = []
-
-        for r in rows:
-            name = str(r.customer or "—")
-            categories.append(name)
-            bar_set.append(float(r.total or 0))
-
-        series = QHorizontalBarSeries()
-        series.append(bar_set)
-        chart.addSeries(series)
-
-        axis_y = QBarCategoryAxis()
-        axis_y.append(categories)
-        axis_y.setLabelsFont(_label_font(9))
-        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        series.attachAxis(axis_y)
-
-        axis_x = QValueAxis()
-        axis_x.setTitleText("Jumlah (Kg)")
-        axis_x.setTitleFont(_label_font(9))
-        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
-        series.attachAxis(axis_x)
-
-        chart.legend().hide()
