@@ -107,7 +107,7 @@ _COLUMNS: dict[str, list[tuple[str, str]]] = {
     "Harian": [
         ("Shift", "shift"),
         ("Jumlah DO", "count_do"),
-        ("Total Tonase (ton)", "total_tonase"),
+        ("Total Tonase (kg)", "total_tonase"),
         ("Avg Lead Time", "avg_lead_time"),
     ],
     "Mingguan": [
@@ -115,7 +115,7 @@ _COLUMNS: dict[str, list[tuple[str, str]]] = {
         ("Tgl Mulai", "tgl_mulai"),
         ("Tgl Akhir", "tgl_akhir"),
         ("Total DO", "total_do"),
-        ("Total Tonase (ton)", "total_tonase"),
+        ("Total Tonase (kg)", "total_tonase"),
         ("Avg Lead Time", "avg_lead_time"),
         ("Shift 1", "shift_1_count"),
         ("Shift 2", "shift_2_count"),
@@ -124,19 +124,19 @@ _COLUMNS: dict[str, list[tuple[str, str]]] = {
     "Bulanan": [
         ("Customer", "customer"),
         ("Jumlah DO", "count"),
-        ("Total Tonase (ton)", "tonase"),
+        ("Total Tonase (kg)", "tonase"),
         ("Avg Lead Time", "avg_lead_time"),
     ],
     "Per Customer": [
         ("Customer", "customer"),
         ("Jumlah DO", "count_do"),
-        ("Total Tonase (ton)", "total_tonase"),
+        ("Total Tonase (kg)", "total_tonase"),
         ("Avg Lead Time", "avg_lead_time"),
     ],
     "Per Ekspedisi": [
         ("Ekspedisi", "ekspedisi"),
         ("Jumlah DO", "count_do"),
-        ("Total Tonase (ton)", "total_tonase"),
+        ("Total Tonase (kg)", "total_tonase"),
         ("Avg Lead Time", "avg_lead_time"),
     ],
 }
@@ -488,7 +488,7 @@ class ReportWidget(QWidget):
 
     def _update_cards(self, count_do: int, total_tonase: float, avg_lt: float):
         self._card_do.set_value(str(count_do))
-        self._card_tonase.set_value(f"{total_tonase:,.1f} ton")
+        self._card_tonase.set_value(f"{total_tonase:,.1f} kg")
         self._card_lt.set_value(_fmt_lt(avg_lt))
 
     def _fill_table(self, cols: list[tuple[str, str]], rows: list[dict], total_row_idx: int = -1):

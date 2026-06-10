@@ -25,7 +25,7 @@ _REPORT_COLUMNS: dict[str, list[tuple[str, str]]] = {
     "Harian": [
         ("Shift",               "shift"),
         ("Jumlah DO",           "count_do"),
-        ("Total Tonase (ton)",  "total_tonase"),
+        ("Total Tonase (kg)",  "total_tonase"),
         ("Avg Lead Time",       "avg_lead_time"),
     ],
     "Mingguan": [
@@ -33,7 +33,7 @@ _REPORT_COLUMNS: dict[str, list[tuple[str, str]]] = {
         ("Tgl Mulai",           "tgl_mulai"),
         ("Tgl Akhir",           "tgl_akhir"),
         ("Total DO",            "total_do"),
-        ("Total Tonase (ton)",  "total_tonase"),
+        ("Total Tonase (kg)",  "total_tonase"),
         ("Avg Lead Time",       "avg_lead_time"),
         ("Shift 1",             "shift_1_count"),
         ("Shift 2",             "shift_2_count"),
@@ -42,19 +42,19 @@ _REPORT_COLUMNS: dict[str, list[tuple[str, str]]] = {
     "Bulanan": [
         ("Customer",            "customer"),
         ("Jumlah DO",           "count"),
-        ("Total Tonase (ton)",  "tonase"),
+        ("Total Tonase (kg)",  "tonase"),
         ("Avg Lead Time",       "avg_lead_time"),
     ],
     "Per Customer": [
         ("Customer",            "customer"),
         ("Jumlah DO",           "count_do"),
-        ("Total Tonase (ton)",  "total_tonase"),
+        ("Total Tonase (kg)",  "total_tonase"),
         ("Avg Lead Time",       "avg_lead_time"),
     ],
     "Per Ekspedisi": [
         ("Ekspedisi",           "ekspedisi"),
         ("Jumlah DO",           "count_do"),
-        ("Total Tonase (ton)",  "total_tonase"),
+        ("Total Tonase (kg)",  "total_tonase"),
         ("Avg Lead Time",       "avg_lead_time"),
     ],
 }

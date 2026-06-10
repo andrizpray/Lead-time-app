@@ -6,6 +6,7 @@ from PySide6.QtCharts import (
     QBarSet,
     QChart,
     QChartView,
+    QHorizontalBarSeries,
     QLineSeries,
     QPieSeries,
     QValueAxis,
@@ -352,7 +353,7 @@ class DashboardWidget(QWidget):
             .scalar() or 0.0
         )
         self._card_tonase.set_value(
-            f"{total_tonase:,.1f} ton",
+            f"{total_tonase:,.1f} kg",
             f"{d_from.strftime('%d %b')} – {d_to.strftime('%d %b %Y')}",
         )
 
@@ -508,7 +509,7 @@ class DashboardWidget(QWidget):
         series_sheet.attachAxis(axis_x)
 
         axis_y = QValueAxis()
-        axis_y.setTitleText("Ton")
+        axis_y.setTitleText("Kg")
         axis_y.setTitleFont(_label_font(9))
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series_roll.attachAxis(axis_y)
@@ -530,24 +531,23 @@ class DashboardWidget(QWidget):
 
         for r in rows:
             name = str(r.customer or "—")
-            categories.append(name[:14] + "…" if len(name) > 14 else name)
+            categories.append(name)
             bar_set.append(float(r.total or 0))
 
-        series = QBarSeries()
+        series = QHorizontalBarSeries()
         series.append(bar_set)
         chart.addSeries(series)
 
-        axis_x = QBarCategoryAxis()
-        axis_x.append(categories)
-        axis_x.setLabelsFont(_label_font(8))
-        axis_x.setLabelsAngle(-35)
-        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
-        series.attachAxis(axis_x)
-
-        axis_y = QValueAxis()
-        axis_y.setTitleText("Ton")
-        axis_y.setTitleFont(_label_font(9))
+        axis_y = QBarCategoryAxis()
+        axis_y.append(categories)
+        axis_y.setLabelsFont(_label_font(9))
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
+
+        axis_x = QValueAxis()
+        axis_x.setTitleText("Jumlah (Kg)")
+        axis_x.setTitleFont(_label_font(9))
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(axis_x)
 
         chart.legend().hide()

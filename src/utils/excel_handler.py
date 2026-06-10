@@ -292,10 +292,13 @@ def parse_excel(path: str) -> dict:
         record["tonase_roll"] = _to_float(row.get("tonase_roll", 0))
         record["tonase_sheet"] = _to_float(row.get("tonase_sheet", 0))
 
-        # Auto-detect kg vs ton (nilai > 1000 kemungkinan kg, konversi ke ton)
-        for fld in ("tonase_roll", "tonase_sheet"):
-            if record.get(fld, 0) > 1000:
-                record[fld] = record[fld] / 1000
+        # Jika TONASE ada di satu kolom, pisahin berdasarkan JENIS
+        jenis = record.get("jenis", "").upper().strip()
+        if record["tonase_roll"] > 0 and record["tonase_sheet"] == 0:
+            if jenis == "SHEET":
+                record["tonase_sheet"] = record["tonase_roll"]
+                record["tonase_roll"] = 0.0
+            # ROLL stays as tonase_roll
 
         # --- duplicate check ---
         try:
