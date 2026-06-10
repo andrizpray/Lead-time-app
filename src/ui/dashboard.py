@@ -238,10 +238,8 @@ class DashboardWidget(QWidget):
         # defaults: ambil dari range data di DB, fallback 30 hari
         today = QDate.currentDate()
         try:
-            from src.core.models import DORecord
-            from peewee import fn as _fn
-            db_first = DORecord.select(_fn.MIN(DORecord.tgl)).scalar()
-            db_last = DORecord.select(_fn.MAX(DORecord.tgl)).scalar()
+            db_first = DORecord.select(fn.MIN(DORecord.tgl)).scalar()
+            db_last = DORecord.select(fn.MAX(DORecord.tgl)).scalar()
             if db_first and db_last:
                 self._date_from.setDate(QDate(db_first.year, db_first.month, db_first.day))
                 self._date_to.setDate(QDate(db_last.year, db_last.month, db_last.day))
@@ -550,10 +548,16 @@ class DashboardWidget(QWidget):
         series_sheet.setPen(pen_sheet)
 
         categories = []
+        max_roll_val = 0.0
+        max_sheet_val = 0.0
         for i, r in enumerate(rows):
             categories.append(_date_label(r.tgl))
-            series_roll.append(i, float(r.sum_roll or 0))
-            series_sheet.append(i, float(r.sum_sheet or 0))
+            rv = float(r.sum_roll or 0)
+            sv = float(r.sum_sheet or 0)
+            series_roll.append(i, rv)
+            series_sheet.append(i, sv)
+            max_roll_val = max(max_roll_val, rv)
+            max_sheet_val = max(max_sheet_val, sv)
 
         chart.addSeries(series_roll)
         chart.addSeries(series_sheet)
@@ -565,12 +569,23 @@ class DashboardWidget(QWidget):
         series_roll.attachAxis(axis_x)
         series_sheet.attachAxis(axis_x)
 
-        axis_y = QValueAxis()
-        axis_y.setTitleText("Kg")
-        axis_y.setTitleFont(_label_font(9))
-        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-        series_roll.attachAxis(axis_y)
-        series_sheet.attachAxis(axis_y)
+        # --- Left Y-axis (Roll) ---
+        axis_y_roll = QValueAxis()
+        axis_y_roll.setTitleText("Roll (kg)")
+        axis_y_roll.setTitleFont(_label_font(9))
+        axis_y_roll.setLabelFormat("%.0f")
+        axis_y_roll.setRange(0, max_roll_val * 1.1)
+        chart.addAxis(axis_y_roll, Qt.AlignmentFlag.AlignLeft)
+        series_roll.attachAxis(axis_y_roll)
+
+        # --- Right Y-axis (Sheet) ---
+        axis_y_sheet = QValueAxis()
+        axis_y_sheet.setTitleText("Sheet (kg)")
+        axis_y_sheet.setTitleFont(_label_font(9))
+        axis_y_sheet.setLabelFormat("%.0f")
+        axis_y_sheet.setRange(0, max(max_sheet_val * 1.1, 1.0))
+        chart.addAxis(axis_y_sheet, Qt.AlignmentFlag.AlignRight)
+        series_sheet.attachAxis(axis_y_sheet)
 
         chart.legend().setVisible(True)
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
