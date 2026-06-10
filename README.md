@@ -1,182 +1,189 @@
-# Lead Time Management System
+<p align="center">
+  <img src="assets/icon.png" width="120" alt="LeadTime App Icon">
+</p>
 
-Aplikasi desktop **Lead Time** untuk **PT Eco Paper Indonesia** — tracking, analisis, dan pelaporan waktu lead time (loading) DO (Delivery Order) dengan antarmuka grafis Python.
+<h1 align="center">◆ LeadTime</h1>
+<p align="center"><strong>Lead Time Management System</strong><br>PT Eco Paper Indonesia</p>
 
-![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python)
-![PySide6](https://img.shields.io/badge/UI-PySide6_Qt6-41CD52?logo=qt)
-![SQLite](https://img.shields.io/badge/DB-SQLite+Peewee-003B57?logo=sqlite)
-![PyInstaller](https://img.shields.io/badge/Build-PyInstaller-5C3D2E)
-![Tests](https://img.shields.io/badge/Tests-36/36-brightgreen)
-
----
-
-## Fitur
-
-### 📥 Input & Import Data
-- **Input Manual** — Form dialog untuk menambah/edit data DO dengan validasi real-time
-- **Auto-kalkulasi** — Lead time (menit), shift (date-aware configurable), dan tonase total otomatis
-- **Import Excel** — Wizard 3 langkah: pilih file → preview → insert dengan error summary
-- **Auto-detect header** — Scan 15 baris pertama untuk header, handle berbagai format Excel
-- **Dynamic tonase range** — Spinbox otomatis adjust sesuai nilai di database (hingga 999.999 kg)
-
-### 📊 Tabel Data DO
-- 16 kolom (Tanggal, No DO, No Shipment, Customer, Ekspedisi, Lead Time, Tonase, Shift, dll.)
-- Filter panel — filter tanggal, customer, shift, jenis + search bar
-- Pagination (50/100/200 baris per halaman)
-- Highlight baris duplikat (DO sama) dengan warna kuning
-- Double-click edit, toolbar add/edit/delete
-
-### 📈 Dashboard
-- **3 Summary Cards** — Total DO, Total Tonase, Rata-rata Lead Time
-- **Bar Chart** — Lead time rata-rata per hari
-- **Pie Chart** — Distribusi shift
-- **Dual Y-Axis Line Chart** — Tren tonase Roll (kiri) + Sheet (kanan)
-- **Top 10 Customer Table** — Nama customer + total tonase
-- Date range filter (7/30/90 hari + Custom) + auto-refresh
-
-### 📋 Laporan
-- **6 jenis laporan**: Grafik Harian, Harian (per shift), Mingguan, Bulanan, Per Customer, Per Ekspedisi
-- **Grafik Harian** — 2 bar chart side-by-side (DO Count + Tonase per Shift) + Trend Delivery line chart + tabel detail per DO
-- Summary cards (total DO, total tonase, rata-rata LT)
-- **Export Excel** (.xlsx) dengan timestamp filename
-- **Export PDF** (ReportLab) dengan kop perusahaan + timestamp filename
-
-### ⚙️ Pengaturan
-- **Profil Perusahaan** — Nama perusahaan
-- **Jadwal Shift per Tanggal** — Konfigurasi shift bisa berbeda per rentang tanggal, support overnight (misal 19:00–06:59), re-kalkulasi otomatis
-- **Backup Database** — Backup ke `~/.leadtime/backups/` dengan timestamp
-- **Restore Database** — Pilih file backup, konfirmasi overwrite
-
-### 🔒 Production Hardening
-- **Logging** — File log bulanan + stdout
-- **Global exception hook** — Crash handler dengan error dialog + auto close DB
-- **DB WAL mode** — Write-Ahead Logging untuk performa + durability
-- **Safe close** — `close_db()` dipanggil saat exit normal maupun crash
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/UI-PySide6_Qt6-41CD52?logo=qt&logoColor=white" alt="PySide6">
+  <img src="https://img.shields.io/badge/DB-SQLite+Peewee-003B57?logo=sqlite&logoColor=white" alt="SQLite">
+  <img src="https://img.shields.io/badge/Build-PyInstaller-5C3D2E?logo=python&logoColor=white" alt="PyInstaller">
+  <br>
+  <img src="https://img.shields.io/badge/Tests-36%2F36-brightgreen?logo=github" alt="Tests">
+  <img src="https://img.shields.io/badge/Lines-3%2C400%2B-blue" alt="Lines">
+  <img src="https://img.shields.io/badge/Widgets-16-orange" alt="Widgets">
+  <img src="https://img.shields.io/badge/Status-Production_Ready-059669" alt="Status">
+</p>
 
 ---
 
-## Tech Stack
-
-| Komponen | Teknologi |
-|---|---|
-| **UI Framework** | PySide6 (Qt for Python 6) |
-| **Charts** | PySide6.QtCharts |
-| **ORM Database** | Peewee 3.x |
-| **Database** | SQLite (WAL mode) |
-| **Excel Export** | pandas + openpyxl |
-| **PDF Export** | ReportLab 4.x |
-| **Import Excel** | openpyxl langsung |
-| **Packaging** | PyInstaller 6.x |
-
----
-
-## Struktur Proyek
-
-```
-LeadTimeAppPython/
-├── src/
-│   ├── main.py                      # Entry point + logging + exception hook
-│   ├── core/
-│   │   ├── database.py              # Koneksi SQLite + WAL mode
-│   │   ├── models.py                # Model DORecord (Peewee ORM, auto-calc)
-│   │   ├── report.py                # Report generator (6 jenis laporan)
-│   │   ├── settings.py              # Config manager (JSON) + backup/restore
-│   │   └── migration.py             # Schema migration dengan playhouse
-│   ├── ui/
-│   │   ├── main_window.py           # Main window + sidebar navigasi
-│   │   ├── do_form.py               # Form input/edit DO + validasi
-│   │   ├── import_wizard.py         # Import wizard Excel 3 langkah
-│   │   ├── do_table.py              # Tabel data DO + filter + pagination
-│   │   ├── dashboard.py             # Dashboard dengan charts QtCharts
-│   │   ├── report_widget.py         # Laporan + Grafik Harian + export
-│   │   ├── settings_widget.py       # Pengaturan + shift schedule table
-│   │   └── loading_overlay.py       # Loading overlay untuk operasi berat
-│   └── utils/
-│       ├── excel_exporter.py        # Export report/table ke Excel
-│       ├── pdf_generator.py         # Export report ke PDF
-│       └── excel_handler.py         # Handler import Excel + auto-detect
-├── data/
-│   └── leadtime.db                  # Database SQLite (auto-created)
-├── build.sh                         # Build script PyInstaller (one-click)
-├── leadtime.spec                    # PyInstaller spec
-└── requirements.txt                 # Dependencies Python
-```
-
----
-
-## Instalasi & Menjalankan
-
-### Prasyarat
-- Python 3.11+
-- pip
-
-### 1. Clone & Setup
+## 🚀 Quick Start
 
 ```bash
 git clone https://github.com/andrizpray/Lead-time-app.git
 cd Lead-time-app
-python3 -m venv venv
-source venv/bin/activate      # Linux/macOS
-# venv\Scripts\activate       # Windows
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Jalankan Aplikasi
-
-```bash
 python src/main.py
 ```
 
-### 3. Build Executable (One-Click)
-
+**One-click build:**
 ```bash
-bash build.sh          # Incremental build (cepat)
-bash build.sh --clean  # Fresh build dari awal
+bash build.sh          # Incremental
+bash build.sh --clean  # Fresh build
 ```
 
-**Output:**
-- **Linux:** `dist/LeadTimeApp` (single binary)
-- **Windows:** `dist/LeadTimeApp.exe` (single executable)
+---
+
+## 🎯 Apa Itu LeadTime?
+
+Aplikasi desktop untuk **tracking, analisis, dan pelaporan** waktu lead time loading DO. Dirancang khusus untuk operasional pabrik kertas — pantau berapa lama setiap truk loading, berapa tonase per shift, dan siapa customer terbesar — semua dalam satu dashboard.
 
 ---
 
-## Database
+## ✨ Fitur Utama
 
-- **Lokasi default:** `data/leadtime.db` (relatif ke root proyek)
-- **Mode:** SQLite WAL — performa baca/tulis optimal, durable
-- **Backup:** Menu Pengaturan → Backup Database → `~/.leadtime/backups/leadtime_YYYYMMDD_HHMMSS.db`
+<table>
+<tr>
+<td width="50%">
 
-**Model `DORecord` — 17 fields:**
-- `tgl`, `no_shipment` — composite unique key
-- `customer`, `kota_kab`, `jenis`, `ekspedisi`, `jenis_truk`, `nomor_fk`
-- `loading_mulai`, `loading_selesai` → auto-calc `lead_time_menit`
-- `tonase_roll`, `tonase_sheet` → auto-calc `tonase_total`
-- `shift` (1/2/3) — date-aware detection dari configurable schedule
-- `created_at` — timestamp
+### 📥 Input & Import
+- **Form input manual** — validasi real-time, auto-kalkulasi
+- **Import Excel wizard** — 3 langkah, preview warna, error summary
+- **Auto-detect header** — scan 15 baris, handle berbagai format
+- **Dynamic spinbox** — adjust otomatis hingga 999.999 kg
+
+### 📊 Tabel Data
+- 16 kolom lengkap + filter + search
+- Pagination 50/100/200 per halaman
+- Highlight duplikat kuning
+- Double-click edit, toolbar CRUD
+
+### 📈 Dashboard
+- 3 summary cards (Total DO, Tonase, Lead Time)
+- Bar chart lead time + Pie shift + Line dual-axis tonase
+- Top 10 customer table
+- Date range presets (7/30/90 hari)
+
+</td>
+<td width="50%">
+
+### 📋 Laporan
+- **6 jenis**: Grafik Harian, Harian, Mingguan, Bulanan, Customer, Ekspedisi
+- **Grafik Harian**: 3 chart + tabel detail per DO
+- Export Excel + PDF dengan timestamp
+
+### ⚙️ Pengaturan
+- Profil perusahaan
+- **Jadwal shift per tanggal** — support overnight, re-kalkulasi 1 klik
+- Backup/restore database
+
+### 🔒 Production Ready
+- Logging bulanan + crash handler
+- SQLite WAL mode — fast & durable
+- `close_db()` — safe exit & crash
+- 36 automated tests — all passing
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Pengembangan
+## 🏗️ Tech Stack
 
-### Testing
+| Layer | Tech |
+|:------|:-----|
+| **UI** | `PySide6` — Qt6 for Python |
+| **Charts** | `PySide6.QtCharts` — native Qt Charts |
+| **ORM** | `Peewee 3.x` |
+| **Database** | `SQLite` — WAL mode, single-file |
+| **Excel** | `openpyxl` + `pandas` |
+| **PDF** | `ReportLab 4.x` |
+| **Build** | `PyInstaller 6.x` — single .exe |
+| **Theme** | Swiss Modernism — `#F5F7FA` + `#059669` |
+
+---
+
+## 📁 Struktur
+
+```
+LeadTimeAppPython/
+├── src/
+│   ├── main.py                   ← Entry point + logging + crash handler
+│   ├── core/
+│   │   ├── database.py           ← SQLite WAL init + error handling
+│   │   ├── models.py             ← DORecord (17 fields) + auto-calc logic
+│   │   ├── report.py             ← 6 report generators
+│   │   ├── settings.py           ← JSON config + backup/restore
+│   │   └── migration.py          ← Schema versioning
+│   ├── ui/
+│   │   ├── main_window.py        ← Sidebar navigasi + 6 halaman
+│   │   ├── dashboard.py          ← 4 chart + 3 card + customer table
+│   │   ├── do_table.py           ← Tabel + filter + pagination
+│   │   ├── do_form.py            ← Form input/edit + validasi
+│   │   ├── import_wizard.py      ← Wizard import Excel + overlay
+│   │   ├── report_widget.py      ← Grafik Harian + 5 laporan + export
+│   │   ├── settings_widget.py    ← Shift schedule table + backup
+│   │   └── loading_overlay.py    ← Overlay animasi
+│   └── utils/
+│       ├── excel_handler.py      ← Parser Excel + auto-detect
+│       ├── excel_exporter.py     ← Export report ke .xlsx
+│       └── pdf_generator.py      ← Export report ke .pdf
+├── assets/                       ← Icon SVG/PNG/ICO
+├── data/leadtime.db              ← Database (auto-created)
+├── build.sh                      ← One-click build
+├── leadtime.spec                 ← PyInstaller config
+└── requirements.txt
+```
+
+---
+
+## 🗄️ Model DORecord
+
+| Field | Type | Keterangan |
+|:------|:-----|:-----------|
+| `tgl` | Date | Tanggal DO |
+| `no_shipment` | String(50) | Nomor shipment — **unique key** dengan `tgl` |
+| `no_do` | String(50) | Nomor DO |
+| `customer` | String(100) | Nama customer |
+| `kota_kab` | String(100) | Kota/Kabupaten |
+| `jenis` | String(50) | ROLL / SHEET |
+| `ekspedisi` | String(100) | Nama ekspedisi |
+| `jenis_truk` | String(50) | Tipe truk |
+| `loading_mulai` | Time | Jam mulai loading |
+| `loading_selesai` | Time | Jam selesai loading |
+| `lead_time_menit` | Integer | **Auto-calc** — selisih menit |
+| `tonase_roll` | Float | Tonase ROLL (kg) |
+| `tonase_sheet` | Float | Tonase SHEET (kg) |
+| `tonase_total` | Float | **Auto-calc** — roll + sheet |
+| `shift` | Integer | **Auto-detect** — date-aware schedule |
+| `created_at` | DateTime | Timestamp |
+
+---
+
+## 🔧 Pengembangan
 
 ```bash
-# Full test suite (36 test)
+# Test semua fitur (36 test)
 python3 /tmp/test_all_features.py
+
+# Code style
+# - Type hints wajib
+# - Docstrings Bahasa Indonesia
+# - snake_case untuk fungsi, PascalCase untuk class
 ```
 
-### Code Style
-- Python type hints
-- Docstrings dalam Bahasa Indonesia
-- Nama fungsi/variabel: snake_case
-- Nama class: PascalCase
+---
+
+## 📄 Lisensi
+
+Proyek internal **PT Eco Paper Indonesia**. © 2026
 
 ---
 
-## Lisensi
-
-Proyek internal **PT Eco Paper Indonesia**.
-
----
-
-*Dibangun dengan Python + PySide6 + SQLite. Siap produksi.*
+<p align="center">
+  <sub>◆ Dibangun dengan Python + PySide6 + SQLite ◆</sub>
+</p>
