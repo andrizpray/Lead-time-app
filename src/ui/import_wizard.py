@@ -15,6 +15,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
@@ -32,6 +33,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.utils.excel_handler import insert_records, parse_excel
+from src.ui.loading_overlay import LoadingOverlay
 
 logger = logging.getLogger(__name__)
 
@@ -451,6 +453,10 @@ class ImportWizardWidget(QWidget):
         self._step1.import_button.setEnabled(False)
         self._step1.import_button.setText("Memproses...")
 
+        overlay = LoadingOverlay(self)
+        overlay.show_with_message('Mengimpor data...')
+        QApplication.processEvents()
+
         try:
             self._result = parse_excel(path)
         except Exception as exc:
@@ -459,6 +465,7 @@ class ImportWizardWidget(QWidget):
             self._step1.import_button.setText("Import →")
             return
         finally:
+            overlay.hide_overlay()
             self._step1.import_button.setEnabled(True)
             self._step1.import_button.setText("Import →")
 

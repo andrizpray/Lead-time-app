@@ -61,15 +61,13 @@ class _SummaryCard(QFrame):
         super().__init__(parent)
         self._accent = accent
         self.setFrameShape(QFrame.Shape.StyledPanel)
-        self.setStyleSheet(f"""
-            QFrame {{
+        self.setStyleSheet("""
+            QFrame {
                 background: #FFFFFF;
-                border-radius: 12px;
-                border-top: 4px solid {accent};
-                border-left: none;
-                border-right: none;
-                border-bottom: none;
-            }}
+                border-radius: 10px;
+                border: 1px solid #E2E8F0;
+                border-left: 4px solid #059669;
+            }
         """)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setMinimumHeight(115)
@@ -94,7 +92,7 @@ class _SummaryCard(QFrame):
         # -- big value --
         self._value_lbl = QLabel("—")
         self._value_lbl.setStyleSheet(
-            f"color: {accent}; font-size: 26px; font-weight: bold; border: none;"
+            "font-size: 28px; font-weight: 700; color: #0F172A; border: none;"
         )
         layout.addWidget(self._value_lbl)
 

@@ -1,8 +1,10 @@
 from PySide6.QtWidgets import (
     QMainWindow,
     QPushButton,
+    QFrame,
     QSplitter,
     QStackedWidget,
+    QStatusBar,
     QVBoxLayout,
     QWidget,
     QLabel,
@@ -21,8 +23,15 @@ from src.ui.settings_widget import SettingsWidget
 _SIDEBAR_STYLE = """
 QWidget#sidebar {
     background-color: #1e293b;
-    min-width: 200px;
-    max-width: 200px;
+    min-width: 220px;
+    max-width: 220px;
+}
+
+QLabel#appTitle {
+    color: #34d399;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 4px 8px 16px 8px;
 }
 
 QPushButton {
@@ -30,7 +39,7 @@ QPushButton {
     color: #f1f5f9;
     border: none;
     border-radius: 6px;
-    padding: 10px 14px;
+    padding: 10px 16px;
     text-align: left;
     font-size: 13px;
 }
@@ -40,19 +49,19 @@ QPushButton:hover {
 }
 
 QPushButton[active="true"] {
-    background-color: #3b82f6;
+    background-color: #059669;
     color: #ffffff;
     font-weight: bold;
 }
 """
 
 _NAV_ITEMS = [
-    ("📊 Dashboard", 0),
-    ("📋 Data DO", 1),
-    ("➕ Input DO", None),   # opens dialog, no page index
-    ("📥 Import Excel", 2),
-    ("📄 Laporan", 3),
-    ("⚙️ Pengaturan", 4),
+    ("◉ Dashboard", 0),
+    ("☰ Data DO", 1),
+    ("＋ Input DO", None),   # opens dialog, no page index
+    ("⇧ Import Excel", 2),
+    ("▤ Laporan", 3),
+    ("⚙ Pengaturan", 4),
 ]
 
 
@@ -251,11 +260,14 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(8, 16, 8, 16)
         sidebar_layout.setSpacing(4)
 
-        app_title = QLabel("LeadTime")
-        app_title.setStyleSheet(
-            "color: #F1F5F9; font-size: 16px; font-weight: bold; padding: 4px 8px 16px 8px;"
-        )
+        app_title = QLabel("◆ LeadTime")
+        app_title.setObjectName("appTitle")
         sidebar_layout.addWidget(app_title)
+
+        separator = QFrame()
+        separator.setFrameShape(QFrame.Shape.HLine)
+        separator.setStyleSheet("color: #334155; max-height: 1px;")
+        sidebar_layout.addWidget(separator)
 
         self._nav_buttons: list[QPushButton] = []
         for label, page_idx in _NAV_ITEMS:
@@ -267,7 +279,19 @@ class MainWindow(QMainWindow):
 
         sidebar_layout.addStretch()
 
-        # --- content area ---
+        # --- content area with header ---
+        content_container = QWidget()
+        content_layout = QVBoxLayout(content_container)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+
+        self._page_header = QLabel("Dashboard")
+        self._page_header.setStyleSheet(
+            "font-size: 22px; font-weight: bold; color: #0F172A;"
+            "padding: 16px 24px 8px 24px; background: transparent;"
+        )
+        content_layout.addWidget(self._page_header)
+
         self._stack = QStackedWidget()
         self._stack.addWidget(DashboardWidget())        # 0
         self._stack.addWidget(DOTableWidget())          # 1
@@ -275,12 +299,24 @@ class MainWindow(QMainWindow):
         self._stack.addWidget(ReportWidget())           # 3
         self._stack.addWidget(SettingsWidget())             # 4
 
+        content_layout.addWidget(self._stack, 1)
+
         splitter.addWidget(sidebar)
-        splitter.addWidget(self._stack)
+        splitter.addWidget(content_container)
         splitter.setStretchFactor(0, 0)
         splitter.setStretchFactor(1, 1)
 
         self.setCentralWidget(splitter)
+
+        # --- status bar ---
+        self._status_total = QLabel("Total DO: -")
+        self._status_refresh = QLabel("Terakhir refresh: -")
+        self._status_db = QLabel("DB: -")
+        status = QStatusBar()
+        status.addWidget(self._status_total)
+        status.addWidget(self._status_refresh)
+        status.addPermanentWidget(self._status_db)
+        self.setStatusBar(status)
 
         # activate Dashboard by default
         self._navigate(0, self._nav_buttons[0])
@@ -336,6 +372,14 @@ class MainWindow(QMainWindow):
 
         self._stack.setCurrentIndex(page_idx)
 
+        # Update page header title
+        titles = {0: "Dashboard", 1: "Data DO", 2: "Import Excel", 3: "Laporan", 4: "Pengaturan"}
+        self._page_header.setText(titles.get(page_idx, ""))
+
+        # Update status bar
+        from datetime import datetime
+        self._status_refresh.setText(f"Terakhir refresh: {datetime.now().strftime('%H:%M:%S')}")
+
         # Refresh widgets when navigating to them
         if page_idx == 0:
             self._stack.widget(0).refresh()
@@ -345,13 +389,3 @@ class MainWindow(QMainWindow):
             self._stack.widget(3).refresh()
         if page_idx == 4:
             self._stack.widget(4).refresh()
-
-
-# ------------------------------------------------------------------
-def _placeholder(name: str) -> QWidget:
-    w = QWidget()
-    layout = QVBoxLayout(w)
-    lbl = QLabel("Coming Soon")
-    lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-    layout.addWidget(lbl)
-    return w

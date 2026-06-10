@@ -229,9 +229,9 @@ class DOTableWidget(QWidget):
             "}"
         )
 
-        layout = QHBoxLayout(frame)
+        layout = QVBoxLayout(frame)
         layout.setContentsMargins(12, 6, 12, 6)
-        layout.setSpacing(6)
+        layout.setSpacing(8)
 
         today = QDate.currentDate()
 
@@ -267,22 +267,30 @@ class DOTableWidget(QWidget):
         btn_reset.setFixedWidth(58)
         btn_reset.clicked.connect(self._reset_filters)
 
-        layout.addWidget(QLabel("Tgl:"))
-        layout.addWidget(self._date_from)
-        layout.addWidget(QLabel("s/d"))
-        layout.addWidget(self._date_to)
-        layout.addSpacing(4)
-        layout.addWidget(QLabel("Customer:"))
-        layout.addWidget(self._filter_customer)
-        layout.addWidget(QLabel("Shift:"))
-        layout.addWidget(self._filter_shift)
-        layout.addWidget(QLabel("Jenis:"))
-        layout.addWidget(self._filter_jenis)
-        layout.addSpacing(4)
-        layout.addWidget(QLabel("Cari:"))
-        layout.addWidget(self._search_bar)
-        layout.addWidget(btn_reset)
-        layout.addStretch()
+        # --- Baris 1: Tgl dari, Tgl s/d, Customer, Shift, Jenis ---
+        row1 = QHBoxLayout()
+        row1.setSpacing(6)
+        row1.addWidget(QLabel("Tgl:"))
+        row1.addWidget(self._date_from)
+        row1.addWidget(QLabel("s/d"))
+        row1.addWidget(self._date_to)
+        row1.addSpacing(4)
+        row1.addWidget(QLabel("Customer:"))
+        row1.addWidget(self._filter_customer)
+        row1.addWidget(QLabel("Shift:"))
+        row1.addWidget(self._filter_shift)
+        row1.addWidget(QLabel("Jenis:"))
+        row1.addWidget(self._filter_jenis)
+        layout.addLayout(row1)
+
+        # --- Baris 2: Cari, Reset, stretch ---
+        row2 = QHBoxLayout()
+        row2.setSpacing(6)
+        row2.addWidget(QLabel("Cari:"))
+        row2.addWidget(self._search_bar)
+        row2.addWidget(btn_reset)
+        row2.addStretch()
+        layout.addLayout(row2)
 
         self._date_from.dateChanged.connect(self._debounce.start)
         self._date_to.dateChanged.connect(self._debounce.start)
