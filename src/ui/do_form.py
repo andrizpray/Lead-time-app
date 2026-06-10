@@ -131,24 +131,22 @@ class DOFormDialog(QDialog):
 
     # ------------------------------------------------------------------
     def _recalc(self):
-        start = self.loading_mulai.time()
-        end = self.loading_selesai.time()
+        from datetime import time as _time
+        from src.core.models import _calc_lead_time, _detect_shift
 
-        s = start.hour() * 60 + start.minute()
-        e = end.hour() * 60 + end.minute()
-        delta = e - s
-        if delta < 0:
-            delta += 24 * 60
-        self.lbl_lead.setText(f"Lead time: {delta} menit")
+        q_start = self.loading_mulai.time()
+        q_end = self.loading_selesai.time()
 
-        h = start.hour()
-        if 6 <= h < 14:
-            shift = 1
-        elif 14 <= h < 22:
-            shift = 2
-        else:
-            shift = 3
-        self.lbl_shift.setText(f"Shift: {shift}")
+        start = _time(q_start.hour(), q_start.minute())
+        end = _time(q_end.hour(), q_end.minute())
+        tgl_date = self.tgl.date().toPython()
+
+        lead = _calc_lead_time(start, end)
+        shift = _detect_shift(tgl_date, start)
+        overnight = " (overnight)" if end < start else ""
+
+        self.lbl_lead.setText(f"Lead time: {lead} menit")
+        self.lbl_shift.setText(f"Shift: {shift}{overnight}")
 
     # ------------------------------------------------------------------
     def _validate_form(self) -> bool:
@@ -218,22 +216,18 @@ class DOFormDialog(QDialog):
 
     # ------------------------------------------------------------------
     def get_data(self) -> dict:
-        start = self.loading_mulai.time()
-        end = self.loading_selesai.time()
+        from datetime import time as _time
+        from src.core.models import _calc_lead_time, _detect_shift
 
-        s = start.hour() * 60 + start.minute()
-        e = end.hour() * 60 + end.minute()
-        delta = e - s
-        if delta < 0:
-            delta += 24 * 60
+        q_start = self.loading_mulai.time()
+        q_end = self.loading_selesai.time()
 
-        h = start.hour()
-        if 6 <= h < 14:
-            shift = 1
-        elif 14 <= h < 22:
-            shift = 2
-        else:
-            shift = 3
+        start = _time(q_start.hour(), q_start.minute())
+        end = _time(q_end.hour(), q_end.minute())
+        tgl_date = self.tgl.date().toPython()
+
+        lead = _calc_lead_time(start, end)
+        shift = _detect_shift(tgl_date, start)
 
         return {
             "tgl": self.tgl.date().toString("yyyy-MM-dd"),
@@ -247,7 +241,7 @@ class DOFormDialog(QDialog):
             "nomor_fk": self.nomor_fk.text().strip() or None,
             "loading_mulai": self.loading_mulai.time().toString("HH:mm"),
             "loading_selesai": self.loading_selesai.time().toString("HH:mm"),
-            "lead_time_menit": delta,
+            "lead_time_menit": lead,
             "shift": shift,
             "tonase_roll": self.tonase_roll.value(),
             "tonase_sheet": self.tonase_sheet.value(),

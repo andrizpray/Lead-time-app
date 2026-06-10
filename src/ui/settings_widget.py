@@ -275,15 +275,13 @@ class SettingsWidget(QWidget):
     def _recalc_all_shifts(self):
         """Re-kalkulasi shift untuk semua DO berdasarkan schedule baru."""
         try:
-            from src.core.database import init_db, database
+            from src.core.database import database
             from src.core.models import DORecord
 
-            init_db()
             count = 0
             for rec in DORecord.select():
                 rec.save()  # trigger re-detection
                 count += 1
-            database.close()
             QMessageBox.information(
                 self,
                 "Re-Kalkulasi Selesai",

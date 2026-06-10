@@ -68,14 +68,16 @@ def get_shift_for_date(tgl: "datetime.date") -> dict:
     # Sorting: tgl_akhir=None (open-ended) ditaruh terakhir
     def _sort_key(s):
         end = s.get("tgl_akhir")
-        return (_date.fromisoformat(end),) if end else (_date.max,)
+        if not end or not str(end).strip():
+            return (_date.max,)
+        return (_date.fromisoformat(str(end)),)
 
     sorted_sched = sorted(schedules, key=_sort_key)
 
     for s in sorted_sched:
         start = _date.fromisoformat(s["tgl_mulai"])
         end_str = s.get("tgl_akhir")
-        end = _date.fromisoformat(end_str) if end_str else _date.max
+        end = _date.fromisoformat(str(end_str)) if end_str and str(end_str).strip() else _date.max
         if start <= tgl <= end:
             return s
 

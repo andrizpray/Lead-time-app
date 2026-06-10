@@ -600,7 +600,7 @@ class ReportWidget(QWidget):
         self._render_trend_chart(daily, date_labels, tgl_awal, tgl_akhir)
 
     def _render_shift_do_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
-        """Grafik bar: DO Count per Shift (SHIFT 1 biru, SHIFT 2 abu)."""
+        """Grafik bar: DO Count per Shift (SHIFT 1 biru, SHIFT 2 abu, SHIFT 3 oranye)."""
         chart = self._chart_shift_do
         chart.removeAllSeries()
         for ax in chart.axes():
@@ -617,14 +617,18 @@ class ReportWidget(QWidget):
         set_s1.setColor(QColor("#2196F3"))
         set_s2 = QBarSet("SHIFT 2")
         set_s2.setColor(QColor("#9E9E9E"))
+        set_s3 = QBarSet("SHIFT 3")
+        set_s3.setColor(QColor("#FF9800"))
 
         for d in daily:
             set_s1.append(d["shift_1_do"])
             set_s2.append(d["shift_2_do"])
+            set_s3.append(d["shift_3_do"])
 
         series = QBarSeries()
         series.append(set_s1)
         series.append(set_s2)
+        series.append(set_s3)
         series.setLabelsVisible(True)
         series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
@@ -648,7 +652,7 @@ class ReportWidget(QWidget):
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
 
     def _render_shift_ton_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
-        """Grafik bar: Tonase per Shift (SHIFT 1 merah, SHIFT 2 kuning)."""
+        """Grafik bar: Tonase per Shift (SHIFT 1 merah, SHIFT 2 kuning, SHIFT 3 coklat)."""
         chart = self._chart_shift_ton
         chart.removeAllSeries()
         for ax in chart.axes():
@@ -665,14 +669,18 @@ class ReportWidget(QWidget):
         set_s1.setColor(QColor("#F44336"))
         set_s2 = QBarSet("SHIFT 2 QTY")
         set_s2.setColor(QColor("#FFEB3B"))
+        set_s3 = QBarSet("SHIFT 3 QTY")
+        set_s3.setColor(QColor("#795548"))
 
         for d in daily:
             set_s1.append(d["shift_1_ton"])
             set_s2.append(d["shift_2_ton"])
+            set_s3.append(d["shift_3_ton"])
 
         series = QBarSeries()
         series.append(set_s1)
         series.append(set_s2)
+        series.append(set_s3)
         series.setLabelsVisible(True)
         series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
