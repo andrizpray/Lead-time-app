@@ -69,6 +69,7 @@ exe = EXE(
     a.datas,
     [],
     name='LeadTimeApp',
+    icon='assets/icon.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

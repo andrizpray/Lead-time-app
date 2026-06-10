@@ -3,6 +3,7 @@ import sys, os, logging
 from datetime import datetime
 from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 
 # ── Logging setup ──────────────────────────────────────────────────────
 LOG_DIR = os.path.join(os.path.expanduser("~"), ".leadtime", "logs")
@@ -48,6 +49,11 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Lead Time Management")
     app.setOrganizationName("PT Eco Paper Indonesia")
+
+    # Set app icon
+    icon_path = os.path.join(os.path.dirname(__file__), "..", "assets", "icon.png")
+    if os.path.exists(icon_path):
+        app.setWindowIcon(QIcon(icon_path))
 
     window = MainWindow()
     window.show()

@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
     QLabel,
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QShortcut, QKeySequence
+from PySide6.QtGui import QShortcut, QKeySequence, QIcon
 
 from src.ui.dashboard import DashboardWidget
 from src.ui.do_table import DOTableWidget
@@ -68,6 +68,12 @@ _NAV_ITEMS = [
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+
+        # ── Window icon ────────────────────────────────────────────────────
+        import os
+        icon_path = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "icon.png")
+        if os.path.exists(icon_path):
+            self.setWindowIcon(QIcon(icon_path))
 
         # ── Light theme ────────────────────────────────────────────────────
         self.setStyleSheet("""
