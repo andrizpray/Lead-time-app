@@ -527,7 +527,17 @@ class ReportWidget(QWidget):
         self._last_data = data
 
         self._update_cards(data["total_do"], data["total_ton"], 0.0)
-        self._card_lt.set_value("—")
+
+        # Calculate avg lead time from records
+        records = data["records"]
+        if records:
+            total_lt = sum(r.lead_time_menit for r in records if r.lead_time_menit)
+            avg_lt = total_lt / len(records) if records else 0.0
+            h, m_desc = divmod(int(avg_lt), 60)
+            lt_str = f"{h}j {m_desc}m" if h else f"{m_desc} mnt"
+            self._card_lt.set_value(lt_str)
+        else:
+            self._card_lt.set_value("—")
 
         # --- isi tabel detail ---
         records = data["records"]

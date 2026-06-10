@@ -394,7 +394,10 @@ class DOTableWidget(QWidget):
         if self._current_page >= self._total_pages:
             self._current_page = self._total_pages - 1
 
-        sort_field_name = DORecordTableModel.COLUMNS[self._sort_column][1]
+        if 0 <= self._sort_column < len(DORecordTableModel.COLUMNS):
+            sort_field_name = DORecordTableModel.COLUMNS[self._sort_column][1]
+        else:
+            sort_field_name = None
         sort_attr = (
             getattr(DORecord, sort_field_name) if sort_field_name else DORecord.id
         )
@@ -414,8 +417,10 @@ class DOTableWidget(QWidget):
 
         q = DORecord.select()
 
-        q = q.where(DORecord.tgl >= self._date_from.date().toString("yyyy-MM-dd"))
-        q = q.where(DORecord.tgl <= self._date_to.date().toString("yyyy-MM-dd"))
+        d_from = self._date_from.date().toPython()
+        d_to = self._date_to.date().toPython()
+        q = q.where(DORecord.tgl >= d_from)
+        q = q.where(DORecord.tgl <= d_to)
 
         customer = self._filter_customer.text().strip()
         if customer:

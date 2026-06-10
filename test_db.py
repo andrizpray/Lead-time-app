@@ -47,7 +47,7 @@ def test_crud_dorecord():
     assert fetched.no_do == "DO-1001"
     assert fetched.customer == "PT Bintang"
 
-    # Overnight lead time test (Shift 3)
+    # Overnight lead time test (Shift 2 — default: shift_2 = 19:00-06:59)
     record2 = DORecord.create(
         tgl=date(2026, 6, 11),
         no_do="DO-1002",
@@ -64,7 +64,7 @@ def test_crud_dorecord():
         tonase_sheet=1200.0
     )
     assert record2.lead_time_menit == 60
-    assert record2.shift == 3
+    assert record2.shift == 2  # Shift 2 = overnight (19:00-06:59)
 
     # Test Unique Constraint (tgl, no_shipment)
     from peewee import IntegrityError

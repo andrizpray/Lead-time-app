@@ -501,6 +501,10 @@ class ImportWizardWidget(QWidget):
 
     # ------------------------------------------------------------------
     def _on_save(self):
+        if not self._result["success"] and not self._result["duplicates"]:
+            QMessageBox.warning(self, "Tidak Ada Data", "Tidak ada data untuk disimpan.")
+            return
+
         self._step3.save_button.setEnabled(False)
         self._step3.back_button.setEnabled(False)
         self._step3.progress_bar.setVisible(True)

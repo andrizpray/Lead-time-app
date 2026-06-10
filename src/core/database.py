@@ -13,9 +13,16 @@ DB_PATH = os.environ.get(
 database = SqliteDatabase(None)
 
 
-def init_db():
-    """Initialize database connection and create tables if needed."""
-    db_dir = os.path.dirname(os.path.abspath(DB_PATH))
+def init_db(db_path: str | None = None):
+    """Initialize database connection and create tables if needed.
+
+    Parameters
+    ----------
+    db_path : str or None
+        Custom database path. Defaults to DB_PATH env var or data/leadtime.db.
+    """
+    path = db_path or DB_PATH
+    db_dir = os.path.dirname(os.path.abspath(path))
     try:
         os.makedirs(db_dir, exist_ok=True)
     except OSError as e:
@@ -24,7 +31,7 @@ def init_db():
 
     try:
         database.init(
-            DB_PATH,
+            path,
             pragmas={
                 "journal_mode": "wal",
                 "foreign_keys": 1,
