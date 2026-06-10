@@ -90,14 +90,14 @@ class DOFormDialog(QDialog):
 
         # tonase_roll
         self.tonase_roll = QDoubleSpinBox()
-        self.tonase_roll.setRange(0, 9999.99)
+        self.tonase_roll.setRange(0, 999999.99)
         self.tonase_roll.setDecimals(2)
         self.tonase_roll.setSuffix(" kg")
         form.addRow("Tonase Roll", self.tonase_roll)
 
         # tonase_sheet
         self.tonase_sheet = QDoubleSpinBox()
-        self.tonase_sheet.setRange(0, 9999.99)
+        self.tonase_sheet.setRange(0, 999999.99)
         self.tonase_sheet.setDecimals(2)
         self.tonase_sheet.setSuffix(" kg")
         form.addRow("Tonase Sheet", self.tonase_sheet)
