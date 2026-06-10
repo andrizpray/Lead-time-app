@@ -1,5 +1,7 @@
 import os
 
+from PySide6.QtCore import QTime, Qt, QUrl
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -10,10 +12,8 @@ from PySide6.QtWidgets import (
     QPushButton,
     QFileDialog,
     QMessageBox,
+    QTimeEdit,
 )
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QDesktopServices
-from PySide6.QtCore import QUrl
 
 from src.core import settings
 
@@ -30,6 +30,7 @@ class SettingsWidget(QWidget):
         root.setContentsMargins(24, 24, 24, 24)
 
         root.addWidget(self._build_company_group())
+        root.addWidget(self._build_shift_group())
         root.addWidget(self._build_database_group())
         root.addWidget(self._build_about_group())
 
@@ -49,6 +50,52 @@ class SettingsWidget(QWidget):
         layout.addWidget(QLabel("Nama Perusahaan:"))
         layout.addWidget(self._company_name_edit)
         layout.addWidget(save_btn, alignment=Qt.AlignmentFlag.AlignLeft)
+        return box
+
+    # ------------------------------------------------------------------
+    def _build_shift_group(self) -> QGroupBox:
+        box = QGroupBox("Konfigurasi Shift")
+        layout = QVBoxLayout(box)
+        layout.setSpacing(8)
+
+        # Shift 1
+        s1_row = QHBoxLayout()
+        s1_row.addWidget(QLabel("Shift 1:"))
+        self._s1_start = QTimeEdit()
+        self._s1_start.setDisplayFormat("HH:mm")
+        s1_row.addWidget(QLabel("Mulai"))
+        s1_row.addWidget(self._s1_start)
+        self._s1_end = QTimeEdit()
+        self._s1_end.setDisplayFormat("HH:mm")
+        s1_row.addWidget(QLabel("Selesai"))
+        s1_row.addWidget(self._s1_end)
+        s1_row.addStretch()
+        layout.addLayout(s1_row)
+
+        # Shift 2
+        s2_row = QHBoxLayout()
+        s2_row.addWidget(QLabel("Shift 2:"))
+        self._s2_start = QTimeEdit()
+        self._s2_start.setDisplayFormat("HH:mm")
+        s2_row.addWidget(QLabel("Mulai"))
+        s2_row.addWidget(self._s2_start)
+        self._s2_end = QTimeEdit()
+        self._s2_end.setDisplayFormat("HH:mm")
+        s2_row.addWidget(QLabel("Selesai"))
+        s2_row.addWidget(self._s2_end)
+        s2_row.addStretch()
+        layout.addLayout(s2_row)
+
+        # Hint
+        hint = QLabel("Shift 2 overnight: Mulai > Selesai (misal 19:00 – 06:59)")
+        hint.setStyleSheet("color: #64748B; font-size: 11px; font-style: italic;")
+        layout.addWidget(hint)
+
+        save_btn = QPushButton("Simpan Shift")
+        save_btn.setFixedWidth(120)
+        save_btn.clicked.connect(self._save_shift)
+        layout.addWidget(save_btn, alignment=Qt.AlignmentFlag.AlignLeft)
+
         return box
 
     # ------------------------------------------------------------------
@@ -108,12 +155,27 @@ class SettingsWidget(QWidget):
         else:
             self._db_path_label.setText(db_path)
 
+        # Shift times
+        self._s1_start.setTime(QTime.fromString(cfg.get("shift_1_start", "07:00"), "HH:mm"))
+        self._s1_end.setTime(QTime.fromString(cfg.get("shift_1_end", "17:59"), "HH:mm"))
+        self._s2_start.setTime(QTime.fromString(cfg.get("shift_2_start", "19:00"), "HH:mm"))
+        self._s2_end.setTime(QTime.fromString(cfg.get("shift_2_end", "06:59"), "HH:mm"))
+
     # ------------------------------------------------------------------
     def _save_company(self):
         cfg = settings.load_config()
         cfg["company_name"] = self._company_name_edit.text().strip()
         settings.save_config(cfg)
         QMessageBox.information(self, "Tersimpan", "Nama perusahaan berhasil disimpan.")
+
+    def _save_shift(self):
+        cfg = settings.load_config()
+        cfg["shift_1_start"] = self._s1_start.time().toString("HH:mm")
+        cfg["shift_1_end"] = self._s1_end.time().toString("HH:mm")
+        cfg["shift_2_start"] = self._s2_start.time().toString("HH:mm")
+        cfg["shift_2_end"] = self._s2_end.time().toString("HH:mm")
+        settings.save_config(cfg)
+        QMessageBox.information(self, "Tersimpan", "Konfigurasi shift berhasil disimpan.")
 
     def _backup(self):
         try:

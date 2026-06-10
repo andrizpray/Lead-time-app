@@ -22,11 +22,31 @@ def _calc_lead_time(start: time, end: time) -> int:
 
 
 def _detect_shift(start: time) -> int:
-    """Shift 1 = 06:00–13:59, Shift 2 = 14:00–21:59, Shift 3 = 22:00–05:59."""
-    h = start.hour
-    if 6 <= h < 14:
+    """Deteksi shift berdasarkan jam mulai dari konfigurasi settings.
+
+    Mendukung shift overnight (jam_mulai > jam_selesai, misal 19:00-06:59).
+    Default: Shift 1 = 07:00-17:59, Shift 2 = 19:00-06:59.
+    """
+    from src.core.settings import load_config
+
+    cfg = load_config()
+
+    def _parse(t: str) -> time:
+        return time.fromisoformat(t)
+
+    def _in_range(t: time, start_str: str, end_str: str) -> bool:
+        s = _parse(start_str)
+        e = _parse(end_str)
+        if s <= e:
+            # Rentang normal: 07:00 <= t < 17:59
+            return s <= t <= e
+        else:
+            # Rentang overnight: 19:00-06:59 → t >= 19:00 atau t <= 06:59
+            return t >= s or t <= e
+
+    if _in_range(start, cfg.get("shift_1_start", "07:00"), cfg.get("shift_1_end", "17:59")):
         return 1
-    if 14 <= h < 22:
+    if _in_range(start, cfg.get("shift_2_start", "19:00"), cfg.get("shift_2_end", "06:59")):
         return 2
     return 3
 

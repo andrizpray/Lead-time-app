@@ -191,7 +191,7 @@ class ReportWidget(QWidget):
         self._on_type_changed(self._combo_type.currentText())
 
     def _build_chart_section(self) -> QWidget:
-        """Container untuk dua grafik (Tonase+DO per Shift, Trend Delivery)."""
+        """Container untuk tiga grafik (DO per Shift, Tonase per Shift, Trend Delivery)."""
         self._chart_container = QWidget()
         self._chart_container.setVisible(False)
 
@@ -199,22 +199,34 @@ class ReportWidget(QWidget):
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.setSpacing(16)
 
-        # --- Grafik 1: Tonase & Total DO per Shift ---
+        # --- Grafik 1: DO per Shift (kiri) + Tonase per Shift (kanan) ---
         frame1 = QFrame()
         frame1.setStyleSheet("QFrame { background:#FFFFFF; border-radius:10px; border:1px solid #E2E8F0; }")
         _drop_shadow(frame1, blur=10, dy=2, alpha=25)
-        lay1 = QVBoxLayout(frame1)
+        lay1 = QHBoxLayout(frame1)
         lay1.setContentsMargins(8, 8, 8, 8)
+        lay1.setSpacing(8)
 
-        self._chart_shift = QChart()
-        self._chart_shift.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
-        self._chart_shift.setBackgroundVisible(False)
+        # -- kiri: DO Count per Shift --
+        self._chart_shift_do = QChart()
+        self._chart_shift_do.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self._chart_shift_do.setBackgroundVisible(False)
+        self._view_shift_do = QChartView(self._chart_shift_do)
+        self._view_shift_do.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._view_shift_do.setMinimumHeight(360)
+        self._view_shift_do.setStyleSheet("background: transparent;")
+        lay1.addWidget(self._view_shift_do, 50)
 
-        self._view_shift = QChartView(self._chart_shift)
-        self._view_shift.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self._view_shift.setMinimumHeight(380)
-        self._view_shift.setStyleSheet("background: transparent;")
-        lay1.addWidget(self._view_shift)
+        # -- kanan: Tonase per Shift --
+        self._chart_shift_ton = QChart()
+        self._chart_shift_ton.setAnimationOptions(QChart.AnimationOption.SeriesAnimations)
+        self._chart_shift_ton.setBackgroundVisible(False)
+        self._view_shift_ton = QChartView(self._chart_shift_ton)
+        self._view_shift_ton.setRenderHint(QPainter.RenderHint.Antialiasing)
+        self._view_shift_ton.setMinimumHeight(360)
+        self._view_shift_ton.setStyleSheet("background: transparent;")
+        lay1.addWidget(self._view_shift_ton, 50)
+
         vbox.addWidget(frame1)
 
         # --- Grafik 2: Trend Delivery ---
@@ -583,39 +595,36 @@ class ReportWidget(QWidget):
             d["tgl"].strftime("%d/%m/%y") if hasattr(d["tgl"], "strftime") else str(d["tgl"])
             for d in daily
         ]
-        self._render_shift_bar_chart(daily, date_labels, tgl_awal, tgl_akhir)
+        self._render_shift_do_chart(daily, date_labels, tgl_awal, tgl_akhir)
+        self._render_shift_ton_chart(daily, date_labels, tgl_awal, tgl_akhir)
         self._render_trend_chart(daily, date_labels, tgl_awal, tgl_akhir)
 
-    def _render_shift_bar_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
-        """Grafik bar: SHIFT 1 DO (biru), SHIFT 1 QTY (merah), SHIFT 2 DO (abu), SHIFT 2 QTY (kuning)."""
-        chart = self._chart_shift
+    def _render_shift_do_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
+        """Grafik bar: DO Count per Shift (SHIFT 1 biru, SHIFT 2 abu)."""
+        chart = self._chart_shift_do
         chart.removeAllSeries()
         for ax in chart.axes():
             chart.removeAxis(ax)
 
         tgl_str = f"{tgl_awal.strftime('%d/%m/%y')} – {tgl_akhir.strftime('%d/%m/%y')}"
-        chart.setTitle(f"GRAFIK TONASE DAN TOTAL DO, PER SHIFT\n{tgl_str}")
+        chart.setTitle(f"DO COUNT PER SHIFT\n{tgl_str}")
         f = QFont()
-        f.setPointSize(11)
+        f.setPointSize(10)
         f.setBold(True)
         chart.setTitleFont(f)
 
-        set_s1_do  = QBarSet("SHIFT 1 DO");   set_s1_do.setColor(QColor("#2196F3"))
-        set_s1_qty = QBarSet("SHIFT 1 QTY");  set_s1_qty.setColor(QColor("#F44336"))
-        set_s2_do  = QBarSet("SHIFT 2 DO");   set_s2_do.setColor(QColor("#9E9E9E"))
-        set_s2_qty = QBarSet("SHIFT 2 QTY");  set_s2_qty.setColor(QColor("#FFEB3B"))
+        set_s1 = QBarSet("SHIFT 1")
+        set_s1.setColor(QColor("#2196F3"))
+        set_s2 = QBarSet("SHIFT 2")
+        set_s2.setColor(QColor("#9E9E9E"))
 
         for d in daily:
-            set_s1_do.append(d["shift_1_do"])
-            set_s1_qty.append(d["shift_1_ton"])
-            set_s2_do.append(d["shift_2_do"])
-            set_s2_qty.append(d["shift_2_ton"])
+            set_s1.append(d["shift_1_do"])
+            set_s2.append(d["shift_2_do"])
 
         series = QBarSeries()
-        series.append(set_s1_do)
-        series.append(set_s1_qty)
-        series.append(set_s2_do)
-        series.append(set_s2_qty)
+        series.append(set_s1)
+        series.append(set_s2)
         series.setLabelsVisible(True)
         series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
 
@@ -623,20 +632,68 @@ class ReportWidget(QWidget):
 
         axis_x = QBarCategoryAxis()
         axis_x.append(labels)
-        lf = QFont(); lf.setPointSize(9)
+        lf = QFont(); lf.setPointSize(8)
         axis_x.setLabelsFont(lf)
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
 
         axis_y = QValueAxis()
-        axis_y.setTitleText("Tonase / DO Count")
+        axis_y.setTitleText("Jumlah DO")
         tf = QFont(); tf.setPointSize(9)
         axis_y.setTitleFont(tf)
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 
         chart.legend().setVisible(True)
-        chart.legend().setAlignment(Qt.AlignmentFlag.AlignRight)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
+
+    def _render_shift_ton_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
+        """Grafik bar: Tonase per Shift (SHIFT 1 merah, SHIFT 2 kuning)."""
+        chart = self._chart_shift_ton
+        chart.removeAllSeries()
+        for ax in chart.axes():
+            chart.removeAxis(ax)
+
+        tgl_str = f"{tgl_awal.strftime('%d/%m/%y')} – {tgl_akhir.strftime('%d/%m/%y')}"
+        chart.setTitle(f"TONASE PER SHIFT\n{tgl_str}")
+        f = QFont()
+        f.setPointSize(10)
+        f.setBold(True)
+        chart.setTitleFont(f)
+
+        set_s1 = QBarSet("SHIFT 1 QTY")
+        set_s1.setColor(QColor("#F44336"))
+        set_s2 = QBarSet("SHIFT 2 QTY")
+        set_s2.setColor(QColor("#FFEB3B"))
+
+        for d in daily:
+            set_s1.append(d["shift_1_ton"])
+            set_s2.append(d["shift_2_ton"])
+
+        series = QBarSeries()
+        series.append(set_s1)
+        series.append(set_s2)
+        series.setLabelsVisible(True)
+        series.setLabelsPosition(QBarSeries.LabelsPosition.LabelsOutsideEnd)
+
+        chart.addSeries(series)
+
+        axis_x = QBarCategoryAxis()
+        axis_x.append(labels)
+        lf = QFont(); lf.setPointSize(8)
+        axis_x.setLabelsFont(lf)
+        chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+        series.attachAxis(axis_x)
+
+        axis_y = QValueAxis()
+        axis_y.setTitleText("Tonase (kg)")
+        tf = QFont(); tf.setPointSize(9)
+        axis_y.setTitleFont(tf)
+        chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+        series.attachAxis(axis_y)
+
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
 
     def _render_trend_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
         """Grafik line: total DO per hari dengan label nilai merah di setiap titik."""

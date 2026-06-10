@@ -9,6 +9,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONFIG = {
     "company_name": "PT Eco Paper Indonesia",
     "db_path": "",  # empty = default data/leadtime.db
+    "shift_1_start": "07:00",
+    "shift_1_end": "17:59",
+    "shift_2_start": "19:00",
+    "shift_2_end": "06:59",
 }
 
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".leadtime")
