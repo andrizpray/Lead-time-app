@@ -21,15 +21,15 @@ def _calc_lead_time(start: time, end: time) -> int:
     return int(delta.total_seconds() // 60)
 
 
-def _detect_shift(start: time) -> int:
-    """Deteksi shift berdasarkan jam mulai dari konfigurasi settings.
+def _detect_shift(tgl: "date", start: time) -> int:
+    """Deteksi shift berdasarkan tanggal + jam mulai dari konfigurasi schedule.
 
+    Mencari shift schedule yang berlaku untuk tgl, lalu mencocokkan jam.
     Mendukung shift overnight (jam_mulai > jam_selesai, misal 19:00-06:59).
-    Default: Shift 1 = 07:00-17:59, Shift 2 = 19:00-06:59.
     """
-    from src.core.settings import load_config
+    from src.core.settings import get_shift_for_date
 
-    cfg = load_config()
+    sched = get_shift_for_date(tgl)
 
     def _parse(t: str) -> time:
         return time.fromisoformat(t)
@@ -38,15 +38,13 @@ def _detect_shift(start: time) -> int:
         s = _parse(start_str)
         e = _parse(end_str)
         if s <= e:
-            # Rentang normal: 07:00 <= t < 17:59
             return s <= t <= e
         else:
-            # Rentang overnight: 19:00-06:59 → t >= 19:00 atau t <= 06:59
             return t >= s or t <= e
 
-    if _in_range(start, cfg.get("shift_1_start", "07:00"), cfg.get("shift_1_end", "17:59")):
+    if _in_range(start, sched["shift_1_start"], sched["shift_1_end"]):
         return 1
-    if _in_range(start, cfg.get("shift_2_start", "19:00"), cfg.get("shift_2_end", "06:59")):
+    if _in_range(start, sched["shift_2_start"], sched["shift_2_end"]):
         return 2
     return 3
 
@@ -90,7 +88,7 @@ class DORecord(Model):
                 else time.fromisoformat(str(self.loading_selesai))
             )
             self.lead_time_menit = _calc_lead_time(start, end)
-            self.shift = _detect_shift(start)
+            self.shift = _detect_shift(self.tgl, start)
 
         self.tonase_total = (self.tonase_roll or 0.0) + (self.tonase_sheet or 0.0)
         return super().save(*args, **kwargs)

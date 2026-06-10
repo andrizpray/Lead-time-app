@@ -1,6 +1,7 @@
 import os
+from datetime import date as _date
 
-from PySide6.QtCore import QTime, Qt, QUrl
+from PySide6.QtCore import QDate, Qt, QUrl
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QWidget,
@@ -12,13 +13,27 @@ from PySide6.QtWidgets import (
     QPushButton,
     QFileDialog,
     QMessageBox,
-    QTimeEdit,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QDateEdit,
 )
 
 from src.core import settings
 
 
 class SettingsWidget(QWidget):
+    _SCHED_COLS = [
+        "Tgl Mulai", "Tgl Akhir",
+        "Shift 1 Mulai", "Shift 1 Selesai",
+        "Shift 2 Mulai", "Shift 2 Selesai",
+    ]
+    _SCHED_KEYS = [
+        "tgl_mulai", "tgl_akhir",
+        "shift_1_start", "shift_1_end",
+        "shift_2_start", "shift_2_end",
+    ]
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._build_ui()
@@ -54,47 +69,62 @@ class SettingsWidget(QWidget):
 
     # ------------------------------------------------------------------
     def _build_shift_group(self) -> QGroupBox:
-        box = QGroupBox("Konfigurasi Shift")
+        box = QGroupBox("Jadwal Shift (per Rentang Tanggal)")
         layout = QVBoxLayout(box)
         layout.setSpacing(8)
 
-        # Shift 1
-        s1_row = QHBoxLayout()
-        s1_row.addWidget(QLabel("Shift 1:"))
-        self._s1_start = QTimeEdit()
-        self._s1_start.setDisplayFormat("HH:mm")
-        s1_row.addWidget(QLabel("Mulai"))
-        s1_row.addWidget(self._s1_start)
-        self._s1_end = QTimeEdit()
-        self._s1_end.setDisplayFormat("HH:mm")
-        s1_row.addWidget(QLabel("Selesai"))
-        s1_row.addWidget(self._s1_end)
-        s1_row.addStretch()
-        layout.addLayout(s1_row)
-
-        # Shift 2
-        s2_row = QHBoxLayout()
-        s2_row.addWidget(QLabel("Shift 2:"))
-        self._s2_start = QTimeEdit()
-        self._s2_start.setDisplayFormat("HH:mm")
-        s2_row.addWidget(QLabel("Mulai"))
-        s2_row.addWidget(self._s2_start)
-        self._s2_end = QTimeEdit()
-        self._s2_end.setDisplayFormat("HH:mm")
-        s2_row.addWidget(QLabel("Selesai"))
-        s2_row.addWidget(self._s2_end)
-        s2_row.addStretch()
-        layout.addLayout(s2_row)
-
-        # Hint
-        hint = QLabel("Shift 2 overnight: Mulai > Selesai (misal 19:00 – 06:59)")
-        hint.setStyleSheet("color: #64748B; font-size: 11px; font-style: italic;")
+        hint = QLabel(
+            "Setiap baris = satu jadwal shift untuk rentang tanggal tertentu.\n"
+            "Tgl Akhir kosong = berlaku sampai sekarang (open-ended).\n"
+            "Klik dua kali sel untuk edit."
+        )
+        hint.setStyleSheet("color: #64748B; font-size: 11px;")
+        hint.setWordWrap(True)
         layout.addWidget(hint)
 
-        save_btn = QPushButton("Simpan Shift")
-        save_btn.setFixedWidth(120)
+        self._sched_table = QTableWidget()
+        self._sched_table.setColumnCount(len(self._SCHED_COLS))
+        self._sched_table.setHorizontalHeaderLabels(self._SCHED_COLS)
+        self._sched_table.setMinimumHeight(120)
+        self._sched_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._sched_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self._sched_table.verticalHeader().setVisible(False)
+        self._sched_table.setStyleSheet("""
+            QTableWidget {
+                border: 1px solid #E2E8F0;
+                font-size: 11px;
+                gridline-color: #E2E8F0;
+            }
+            QHeaderView::section {
+                background-color: #F1F5F9;
+                color: #059669;
+                font-weight: 600;
+                font-size: 11px;
+                padding: 4px;
+                border-bottom: 2px solid #059669;
+                border-right: 1px solid #E2E8F0;
+            }
+            QTableWidget::item:alternate { background-color: #F8FAFC; }
+        """)
+        self._sched_table.setAlternatingRowColors(True)
+        layout.addWidget(self._sched_table)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        add_btn = QPushButton("+ Tambah Jadwal")
+        add_btn.clicked.connect(self._add_schedule)
+        del_btn = QPushButton("Hapus Baris")
+        del_btn.clicked.connect(self._delete_schedule)
+        save_btn = QPushButton("Simpan & Re-Kalkulasi")
+        save_btn.setStyleSheet("QPushButton { background-color: #059669; color: white; font-weight: bold; }")
         save_btn.clicked.connect(self._save_shift)
-        layout.addWidget(save_btn, alignment=Qt.AlignmentFlag.AlignLeft)
+
+        btn_row.addWidget(add_btn)
+        btn_row.addWidget(del_btn)
+        btn_row.addStretch()
+        btn_row.addWidget(save_btn)
+        layout.addLayout(btn_row)
 
         return box
 
@@ -155,11 +185,19 @@ class SettingsWidget(QWidget):
         else:
             self._db_path_label.setText(db_path)
 
-        # Shift times
-        self._s1_start.setTime(QTime.fromString(cfg.get("shift_1_start", "07:00"), "HH:mm"))
-        self._s1_end.setTime(QTime.fromString(cfg.get("shift_1_end", "17:59"), "HH:mm"))
-        self._s2_start.setTime(QTime.fromString(cfg.get("shift_2_start", "19:00"), "HH:mm"))
-        self._s2_end.setTime(QTime.fromString(cfg.get("shift_2_end", "06:59"), "HH:mm"))
+        # Load schedules into table
+        schedules = cfg.get("shift_schedules", [])
+        self._sched_table.setRowCount(len(schedules))
+        for row, s in enumerate(schedules):
+            for col, key in enumerate(self._SCHED_KEYS):
+                val = s.get(key, "")
+                if key in ("tgl_mulai", "tgl_akhir") and val:
+                    d = _date.fromisoformat(val) if isinstance(val, str) else val
+                    item = QTableWidgetItem(d.strftime("%d/%m/%Y"))
+                else:
+                    item = QTableWidgetItem(str(val) if val else "")
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self._sched_table.setItem(row, col, item)
 
     # ------------------------------------------------------------------
     def _save_company(self):
@@ -168,15 +206,93 @@ class SettingsWidget(QWidget):
         settings.save_config(cfg)
         QMessageBox.information(self, "Tersimpan", "Nama perusahaan berhasil disimpan.")
 
-    def _save_shift(self):
-        cfg = settings.load_config()
-        cfg["shift_1_start"] = self._s1_start.time().toString("HH:mm")
-        cfg["shift_1_end"] = self._s1_end.time().toString("HH:mm")
-        cfg["shift_2_start"] = self._s2_start.time().toString("HH:mm")
-        cfg["shift_2_end"] = self._s2_end.time().toString("HH:mm")
-        settings.save_config(cfg)
-        QMessageBox.information(self, "Tersimpan", "Konfigurasi shift berhasil disimpan.")
+    def _add_schedule(self):
+        """Tambah baris baru ke tabel dengan default schedule."""
+        row = self._sched_table.rowCount()
+        self._sched_table.setRowCount(row + 1)
+        defaults = ["01/01/2026", "", "07:00", "17:59", "19:00", "06:59"]
+        for col, val in enumerate(defaults):
+            item = QTableWidgetItem(val)
+            item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._sched_table.setItem(row, col, item)
 
+    def _delete_schedule(self):
+        rows = set(i.row() for i in self._sched_table.selectedIndexes())
+        if not rows:
+            QMessageBox.warning(self, "Hapus Jadwal", "Pilih baris yang ingin dihapus.")
+            return
+        for row in sorted(rows, reverse=True):
+            self._sched_table.removeRow(row)
+
+    def _save_shift(self):
+        """Simpan jadwal shift dari tabel ke config, lalu re-kalkulasi DO."""
+        schedules = []
+        for row in range(self._sched_table.rowCount()):
+            entry = {}
+            for col, key in enumerate(self._SCHED_KEYS):
+                item = self._sched_table.item(row, col)
+                val = item.text().strip() if item else ""
+                if key == "tgl_mulai":
+                    if not val:
+                        QMessageBox.warning(self, "Error", f"Baris {row+1}: Tgl Mulai wajib diisi.")
+                        return
+                    try:
+                        d = _date.strptime(val, "%d/%m/%Y")
+                        entry[key] = d.strftime("%Y-%m-%d")
+                    except ValueError:
+                        QMessageBox.warning(self, "Error", f"Baris {row+1}: Format Tgl Mulai salah (DD/MM/YYYY).")
+                        return
+                elif key == "tgl_akhir":
+                    if val:
+                        try:
+                            d = _date.strptime(val, "%d/%m/%Y")
+                            entry[key] = d.strftime("%Y-%m-%d")
+                        except ValueError:
+                            QMessageBox.warning(self, "Error", f"Baris {row+1}: Format Tgl Akhir salah (DD/MM/YYYY).")
+                            return
+                    else:
+                        entry[key] = None
+                else:
+                    entry[key] = val if val else "00:00"
+            schedules.append(entry)
+
+        cfg = settings.load_config()
+        cfg["shift_schedules"] = schedules
+        settings.save_config(cfg)
+
+        # Re-kalkulasi shift untuk semua DO
+        reply = QMessageBox.question(
+            self,
+            "Re-Kalkulasi Shift",
+            "Jadwal tersimpan. Re-kalkulasi shift untuk semua data DO?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._recalc_all_shifts()
+
+        QMessageBox.information(self, "Tersimpan", "Jadwal shift berhasil disimpan.")
+
+    def _recalc_all_shifts(self):
+        """Re-kalkulasi shift untuk semua DO berdasarkan schedule baru."""
+        try:
+            from src.core.database import init_db, database
+            from src.core.models import DORecord
+
+            init_db()
+            count = 0
+            for rec in DORecord.select():
+                rec.save()  # trigger re-detection
+                count += 1
+            database.close()
+            QMessageBox.information(
+                self,
+                "Re-Kalkulasi Selesai",
+                f"{count} DO berhasil di-rekalkulasi shift-nya.",
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Gagal", f"Gagal re-kalkulasi:\n{e}")
+
+    # ------------------------------------------------------------------
     def _backup(self):
         try:
             dest = settings.backup_database()

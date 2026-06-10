@@ -9,10 +9,16 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONFIG = {
     "company_name": "PT Eco Paper Indonesia",
     "db_path": "",  # empty = default data/leadtime.db
-    "shift_1_start": "07:00",
-    "shift_1_end": "17:59",
-    "shift_2_start": "19:00",
-    "shift_2_end": "06:59",
+    "shift_schedules": [
+        {
+            "tgl_mulai": "2026-01-01",
+            "tgl_akhir": None,  # None = berlaku sampai sekarang
+            "shift_1_start": "07:00",
+            "shift_1_end": "17:59",
+            "shift_2_start": "19:00",
+            "shift_2_end": "06:59",
+        }
+    ],
 }
 
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".leadtime")
@@ -42,6 +48,40 @@ def save_config(config: dict) -> None:
 
 def get(key: str) -> str:
     return load_config().get(key, DEFAULT_CONFIG.get(key, ""))
+
+
+def get_shift_for_date(tgl: "datetime.date") -> dict:
+    """Return shift schedule yang berlaku untuk tanggal tertentu.
+
+    Mencari schedule dengan tgl_mulai <= tgl <= tgl_akhir.
+    tgl_akhir = None berarti "sampai sekarang".
+    Return default schedule pertama jika tidak ada yang cocok.
+    """
+    from datetime import date as _date
+
+    cfg = load_config()
+    schedules = cfg.get("shift_schedules", DEFAULT_CONFIG["shift_schedules"])
+
+    if isinstance(tgl, str):
+        tgl = _date.fromisoformat(tgl)
+
+    # Sorting: tgl_akhir=None (open-ended) ditaruh terakhir
+    def _sort_key(s):
+        end = s.get("tgl_akhir")
+        return (_date.fromisoformat(end),) if end else (_date.max,)
+
+    sorted_sched = sorted(schedules, key=_sort_key)
+
+    for s in sorted_sched:
+        start = _date.fromisoformat(s["tgl_mulai"])
+        end_str = s.get("tgl_akhir")
+        end = _date.fromisoformat(end_str) if end_str else _date.max
+        if start <= tgl <= end:
+            return s
+
+    # Fallback ke schedule pertama
+    return schedules[0] if schedules else DEFAULT_CONFIG["shift_schedules"][0]
+
 
 
 def _resolve_db_path() -> str:
