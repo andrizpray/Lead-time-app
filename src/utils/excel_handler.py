@@ -39,6 +39,7 @@ _COL_MAP: dict[str, str] = {
     "kab": "kota_kab",
     "jenis": "jenis",
     "ekspedisi": "ekspedisi",
+    "expedisi": "ekspedisi",
     "jenis truk": "jenis_truk",
     "jenistruk": "jenis_truk",
     "nomor fk": "nomor_fk",
@@ -53,6 +54,8 @@ _COL_MAP: dict[str, str] = {
     "tonase (roll)": "tonase_roll",
     "tonase roll": "tonase_roll",
     "tonaseroll": "tonase_roll",
+    "tonase": "tonase_roll",
+    "loading time": "loading_mulai",
     "tonase (sheet)": "tonase_sheet",
     "tonase sheet": "tonase_sheet",
     "tonasesheet": "tonase_sheet",
@@ -69,6 +72,18 @@ _TARGET_SHEET = "LOADING TIME 2026"
 
 def _normalise_col(name: Any) -> str:
     return str(name).strip().lower()
+
+
+def _find_header_row(xl: pd.ExcelFile, sheet_name: str, max_scan: int = 15) -> int:
+    """Scan first N rows to find the one with the most COL_MAP matches."""
+    df = xl.parse(sheet_name, header=None, dtype=object, nrows=max_scan)
+    best_row, best_count = 0, 0
+    for i in range(min(max_scan, len(df))):
+        count = sum(1 for v in df.iloc[i] if _normalise_col(v) in _COL_MAP)
+        if count > best_count:
+            best_count, best_row = count, i
+    logger.info("Header auto-detected at row %d (%d matched columns)", best_row, best_count)
+    return best_row
 
 
 def _resolve_columns(df: pd.DataFrame) -> dict[str, str]:
@@ -195,20 +210,30 @@ def parse_excel(path: str) -> dict:
     sheet_name = _TARGET_SHEET if _TARGET_SHEET in xl.sheet_names else xl.sheet_names[0]
     logger.info("Reading sheet '%s' from %s", sheet_name, path)
 
+    # Auto-detect header row
+    header_row = _find_header_row(xl, sheet_name)
+
     try:
-        df = xl.parse(
-            sheet_name,
-            header=0,
-            dtype=str,          # read everything as str first; we convert manually
-        )
+        df_raw = xl.parse(sheet_name, header=header_row, dtype=object)
     except Exception as exc:
         return {"success": [], "duplicates": [], "errors": [{"row": -1, "reason": f"Cannot parse sheet: {exc}"}]}
 
-    # re-read with parse_dates=False to get raw values for date/time cols
-    try:
-        df_raw = xl.parse(sheet_name, header=0, dtype=object)
-    except Exception:
-        df_raw = df.copy()
+    # Check for sub-headers (LOADING TIME -> MULAI/SELESAI pattern).
+    # If the first data row contains "MULAI"/"SELESAI", its values are really
+    # column sub-headers; rename the affected columns and drop that row.
+    if len(df_raw) > 0:
+        first = df_raw.iloc[0]
+        sub_tokens = {"mulai", "selesai"}
+        if any(_normalise_col(v) in sub_tokens for v in first):
+            rename: dict[Any, str] = {}
+            for col in df_raw.columns:
+                token = _normalise_col(first[col])
+                if token in sub_tokens:
+                    rename[col] = token
+            if rename:
+                df_raw = df_raw.rename(columns=rename)
+                df_raw = df_raw.iloc[1:].reset_index(drop=True)
+                header_row += 1  # so excel_row math stays accurate
 
     col_map = _resolve_columns(df_raw)
     if not col_map:
@@ -222,7 +247,7 @@ def parse_excel(path: str) -> dict:
     df_raw = df_raw.rename(columns=col_map)
 
     for df_row_idx, row in df_raw.iterrows():
-        excel_row = int(df_row_idx) + 2  # 1-based + header
+        excel_row = int(df_row_idx) + header_row + 2  # 1-based + header offset
 
         record: dict[str, Any] = {}
 
@@ -266,6 +291,11 @@ def parse_excel(path: str) -> dict:
         # --- tonase ---
         record["tonase_roll"] = _to_float(row.get("tonase_roll", 0))
         record["tonase_sheet"] = _to_float(row.get("tonase_sheet", 0))
+
+        # Auto-detect kg vs ton (nilai > 1000 kemungkinan kg, konversi ke ton)
+        for fld in ("tonase_roll", "tonase_sheet"):
+            if record.get(fld, 0) > 1000:
+                record[fld] = record[fld] / 1000
 
         # --- duplicate check ---
         try:

@@ -63,7 +63,7 @@ class _SummaryCard(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(f"""
             QFrame {{
-                background: #1e293b;
+                background: #FFFFFF;
                 border-radius: 12px;
                 border-top: 4px solid {accent};
                 border-left: none;
@@ -85,7 +85,7 @@ class _SummaryCard(QFrame):
         icon_lbl = QLabel(icon)
         icon_lbl.setStyleSheet(f"font-size: 22px; color: {accent}; border: none;")
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("color: #9ca3af; font-size: 12px; font-weight: 600; border: none;")
+        title_lbl.setStyleSheet("color: #64748B; font-size: 12px; font-weight: 600; border: none;")
         header.addWidget(icon_lbl)
         header.addWidget(title_lbl)
         header.addStretch()
@@ -100,7 +100,7 @@ class _SummaryCard(QFrame):
 
         # -- subtitle --
         self._sub_lbl = QLabel("")
-        self._sub_lbl.setStyleSheet("color: #94a3b8; font-size: 11px; border: none;")
+        self._sub_lbl.setStyleSheet("color: #64748B; font-size: 11px; border: none;")
         layout.addWidget(self._sub_lbl)
 
     def set_value(self, value: str, subtitle: str = ""):
@@ -114,7 +114,7 @@ class _SummaryCard(QFrame):
 
 def _chart_frame(chart_view: QChartView) -> QFrame:
     frame = QFrame()
-    frame.setStyleSheet("QFrame { background: #1e293b; border-radius: 10px; }")
+    frame.setStyleSheet("QFrame { background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0; }")
     _drop_shadow(frame, blur=10, dy=2, alpha=25)
     layout = QVBoxLayout(frame)
     layout.setContentsMargins(6, 6, 6, 6)
@@ -171,10 +171,10 @@ class DashboardWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: #0f1724; }")
+        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: #F5F7FA; }")
 
         inner = QWidget()
-        inner.setStyleSheet("background: #0f1724;")
+        inner.setStyleSheet("background: #F5F7FA;")
         vbox = QVBoxLayout(inner)
         vbox.setContentsMargins(20, 20, 20, 20)
         vbox.setSpacing(16)
@@ -200,14 +200,14 @@ class DashboardWidget(QWidget):
 
     def _build_filter_row(self) -> QFrame:
         frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #1e293b; border-radius: 10px; }")
+        frame.setStyleSheet("QFrame { background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0; }")
         _drop_shadow(frame, blur=8, dy=2, alpha=20)
 
         row = QHBoxLayout(frame)
         row.setContentsMargins(16, 10, 16, 10)
         row.setSpacing(10)
 
-        lbl_style = "color: #374151; font-size: 12px; font-weight: 600;"
+        lbl_style = "color: #0F172A; font-size: 12px; font-weight: 600;"
 
         dari_lbl = QLabel("Dari:")
         dari_lbl.setStyleSheet(lbl_style)
