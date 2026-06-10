@@ -121,7 +121,7 @@ class _Step1(QWidget):
 
         hint = QLabel("Pilih file .xlsx yang berisi sheet \"LOADING TIME 2026\"")
         hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        hint.setStyleSheet("color: #64748b;")
+        hint.setStyleSheet("color: #9ca3af;")
         layout.addWidget(hint)
 
         self._path_label = QLabel("Belum ada file dipilih")

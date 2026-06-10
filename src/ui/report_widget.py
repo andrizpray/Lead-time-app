@@ -58,7 +58,7 @@ class _Card(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(f"""
             QFrame {{
-                background: #ffffff;
+                background: #1e293b;
                 border-radius: 12px;
                 border-top: 4px solid {accent};
                 border-left: none; border-right: none; border-bottom: none;
@@ -76,7 +76,7 @@ class _Card(QFrame):
         icon_lbl = QLabel(icon)
         icon_lbl.setStyleSheet(f"font-size: 20px; color: {accent}; border: none;")
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("color: #64748b; font-size: 12px; font-weight: 600; border: none;")
+        title_lbl.setStyleSheet("color: #9ca3af; font-size: 12px; font-weight: 600; border: none;")
         header.addWidget(icon_lbl)
         header.addWidget(title_lbl)
         header.addStretch()
@@ -160,10 +160,10 @@ class ReportWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: #f1f5f9; }")
+        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: #0f1724; }")
 
         inner = QWidget()
-        inner.setStyleSheet("background: #f1f5f9;")
+        inner.setStyleSheet("background: #0f1724;")
         vbox = QVBoxLayout(inner)
         vbox.setContentsMargins(20, 20, 20, 20)
         vbox.setSpacing(16)
@@ -181,7 +181,7 @@ class ReportWidget(QWidget):
 
     def _build_filter_panel(self) -> QFrame:
         frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #ffffff; border-radius: 10px; }")
+        frame.setStyleSheet("QFrame { background: #1e293b; border-radius: 10px; }")
         _drop_shadow(frame, blur=8, dy=2, alpha=20)
 
         row = QHBoxLayout(frame)
@@ -288,7 +288,7 @@ class ReportWidget(QWidget):
 
     def _build_table_section(self) -> QFrame:
         frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #ffffff; border-radius: 10px; }")
+        frame.setStyleSheet("QFrame { background: #1e293b; border-radius: 10px; }")
         _drop_shadow(frame, blur=10, dy=2, alpha=25)
 
         lay = QVBoxLayout(frame)
@@ -305,19 +305,19 @@ class ReportWidget(QWidget):
                 border: none;
                 border-radius: 10px;
                 font-size: 12px;
-                gridline-color: #e2e8f0;
+                gridline-color: #2a2a4a;
             }
             QHeaderView::section {
-                background-color: #f8fafc;
-                color: #374151;
+                background-color: #16213e;
+                color: #059669;
                 font-weight: 600;
                 font-size: 12px;
                 padding: 8px;
-                border-bottom: 1px solid #e2e8f0;
-                border-right: 1px solid #e2e8f0;
+                border-bottom: 1px solid #2a2a4a;
+                border-right: 1px solid #2a2a4a;
             }
-            QTableWidget::item:alternate { background-color: #f8fafc; }
-            QTableWidget::item:selected { background-color: #dbeafe; color: #1e40af; }
+            QTableWidget::item:alternate { background-color: #16213e; }
+            QTableWidget::item:selected { background-color: #059669; color: #ffffff; }
         """)
 
         lay.addWidget(self._table)

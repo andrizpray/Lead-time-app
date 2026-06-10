@@ -196,7 +196,7 @@ class DOTableWidget(QWidget):
 
         self._btn_delete.setStyleSheet(
             "QPushButton { color: #dc2626; }"
-            "QPushButton:hover { background: #fee2e2; }"
+            "QPushButton:hover { background: #450a0a; }"
             "QPushButton:disabled { color: #94a3b8; }"
         )
 
@@ -223,8 +223,7 @@ class DOTableWidget(QWidget):
         frame.setObjectName("filterFrame")
         frame.setStyleSheet(
             "#filterFrame {"
-            "  background: #f8fafc;"
-            "  border: 1px solid #e2e8f0;"
+            "  border: 1px solid #2a2a4a;"
             "  border-radius: 6px;"
             "}"
         )
@@ -354,7 +353,7 @@ class DOTableWidget(QWidget):
         layout.addStretch()
 
         self._total_label = QLabel("0 records")
-        self._total_label.setStyleSheet("color: #64748b; font-size: 12px;")
+        self._total_label.setStyleSheet("color: #9ca3af; font-size: 12px;")
         layout.addWidget(self._total_label)
 
         return layout

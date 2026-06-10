@@ -63,7 +63,7 @@ class _SummaryCard(QFrame):
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(f"""
             QFrame {{
-                background: #ffffff;
+                background: #1e293b;
                 border-radius: 12px;
                 border-top: 4px solid {accent};
                 border-left: none;
@@ -85,7 +85,7 @@ class _SummaryCard(QFrame):
         icon_lbl = QLabel(icon)
         icon_lbl.setStyleSheet(f"font-size: 22px; color: {accent}; border: none;")
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet("color: #64748b; font-size: 12px; font-weight: 600; border: none;")
+        title_lbl.setStyleSheet("color: #9ca3af; font-size: 12px; font-weight: 600; border: none;")
         header.addWidget(icon_lbl)
         header.addWidget(title_lbl)
         header.addStretch()
@@ -114,7 +114,7 @@ class _SummaryCard(QFrame):
 
 def _chart_frame(chart_view: QChartView) -> QFrame:
     frame = QFrame()
-    frame.setStyleSheet("QFrame { background: #ffffff; border-radius: 10px; }")
+    frame.setStyleSheet("QFrame { background: #1e293b; border-radius: 10px; }")
     _drop_shadow(frame, blur=10, dy=2, alpha=25)
     layout = QVBoxLayout(frame)
     layout.setContentsMargins(6, 6, 6, 6)
@@ -171,10 +171,10 @@ class DashboardWidget(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: #f1f5f9; }")
+        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: #0f1724; }")
 
         inner = QWidget()
-        inner.setStyleSheet("background: #f1f5f9;")
+        inner.setStyleSheet("background: #0f1724;")
         vbox = QVBoxLayout(inner)
         vbox.setContentsMargins(20, 20, 20, 20)
         vbox.setSpacing(16)
@@ -200,7 +200,7 @@ class DashboardWidget(QWidget):
 
     def _build_filter_row(self) -> QFrame:
         frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #ffffff; border-radius: 10px; }")
+        frame.setStyleSheet("QFrame { background: #1e293b; border-radius: 10px; }")
         _drop_shadow(frame, blur=8, dy=2, alpha=20)
 
         row = QHBoxLayout(frame)

@@ -109,7 +109,7 @@ class DOFormDialog(QDialog):
         self.lbl_lead = QLabel("Lead time: — menit")
         self.lbl_shift = QLabel("Shift: —")
         for lbl in (self.lbl_lead, self.lbl_shift):
-            lbl.setStyleSheet("color: #64748b; font-size: 12px;")
+            lbl.setStyleSheet("color: #9ca3af; font-size: 12px;")
         info_row.addWidget(self.lbl_lead)
         info_row.addStretch()
         info_row.addWidget(self.lbl_shift)
@@ -178,13 +178,8 @@ class DOFormDialog(QDialog):
         s = mulai.hour() * 60 + mulai.minute()
         e = selesai.hour() * 60 + selesai.minute()
         if e <= s:
-            QMessageBox.warning(
-                self,
-                "Validasi",
-                "Loading Selesai harus lebih besar dari Loading Mulai.\n"
-                "(Untuk overnight, fitur belum didukung.)",
-            )
-            return False
+            # Overnight: loading selesai besok hari
+            pass  # Diizinkan — model handle dengan +24h
 
         # --- no_do duplicate check ---
         no_do_val = self.no_do.text().strip()
