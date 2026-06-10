@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -554,7 +554,7 @@ class DOTableWidget(QWidget):
         filepath, _ = QFileDialog.getSaveFileName(
             self,
             "Simpan Excel",
-            "Data_DO.xlsx",
+            f"Data_DO_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
             "Excel Files (*.xlsx)",
         )
         if not filepath:

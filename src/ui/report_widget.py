@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from PySide6.QtCore import QDate, Qt
 from PySide6.QtGui import QColor
@@ -210,7 +210,17 @@ class ReportWidget(QWidget):
         self._date_single = QDateEdit()
         self._date_single.setCalendarPopup(True)
         self._date_single.setDisplayFormat("dd/MM/yyyy")
-        self._date_single.setDate(QDate.currentDate())
+        # Default: latest date from DB
+        try:
+            from src.core.models import DORecord
+            from peewee import fn as _fn
+            db_last = DORecord.select(_fn.MAX(DORecord.tgl)).scalar()
+            if db_last:
+                self._date_single.setDate(QDate(db_last.year, db_last.month, db_last.day))
+            else:
+                self._date_single.setDate(QDate.currentDate())
+        except Exception:
+            self._date_single.setDate(QDate.currentDate())
         row.addWidget(self._date_single)
 
         self._lbl_dari = QLabel("Dari:")
@@ -534,7 +544,7 @@ class ReportWidget(QWidget):
         filepath, _ = QFileDialog.getSaveFileName(
             self,
             "Simpan Excel",
-            f"Laporan_{self._last_type.replace(' ', '_')}.xlsx",
+            f"Laporan_{self._last_type.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
             "Excel Files (*.xlsx)",
         )
         if not filepath:
@@ -552,7 +562,7 @@ class ReportWidget(QWidget):
         filepath, _ = QFileDialog.getSaveFileName(
             self,
             "Simpan PDF",
-            f"Laporan_{self._last_type.replace(' ', '_')}.pdf",
+            f"Laporan_{self._last_type.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf",
             "PDF Files (*.pdf)",
         )
         if not filepath:

@@ -202,6 +202,11 @@ class _Step2(QWidget):
         self._summary.setStyleSheet("color: #475569;")
         layout.addWidget(self._summary)
 
+        self._error_detail = QLabel()
+        self._error_detail.setStyleSheet("color: #dc2626; font-size: 11px; padding: 4px 0;")
+        self._error_detail.setWordWrap(True)
+        layout.addWidget(self._error_detail)
+
         legend_row = QHBoxLayout()
         for color, text in [(_GREEN, "Valid"), (_RED, "Duplikat"), (_YELLOW, "Error")]:
             box = QLabel()
@@ -285,6 +290,15 @@ class _Step2(QWidget):
             f"⚠️ Duplikat: {len(duplicates)}  |  "
             f"❌ Error: {len(errors)}"
         )
+
+        # Error detail — show first 3 error reasons
+        if errors:
+            from collections import Counter
+            reason_counts = Counter(e["reason"] for e in errors)
+            samples = [f"{reason} (×{cnt})" for reason, cnt in reason_counts.most_common(3)]
+            self._error_detail.setText("  • " + "\n  • ".join(samples))
+        else:
+            self._error_detail.setText("")
 
     @property
     def back_button(self) -> QPushButton:
