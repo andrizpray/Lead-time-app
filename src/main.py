@@ -25,6 +25,11 @@ def global_excepthook(exc_type, exc_value, exc_traceback):
     logger.critical("Unhandled exception", exc_info=(exc_type, exc_value, exc_traceback))
     import traceback
     msg = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
+    try:
+        from src.core.database import close_db
+        close_db()
+    except Exception:
+        pass
     app = QApplication.instance()
     if app:
         QMessageBox.critical(None, "Error Kritis",
@@ -33,7 +38,7 @@ def global_excepthook(exc_type, exc_value, exc_traceback):
 sys.excepthook = global_excepthook
 
 # ── Main ───────────────────────────────────────────────────────────────
-from src.core.database import init_db
+from src.core.database import init_db, close_db
 from src.core.settings import CONFIG_DIR
 from src.ui.main_window import MainWindow
 
@@ -48,6 +53,7 @@ def main():
     window.show()
 
     exit_code = app.exec()
+    close_db()
     logger.info(f"Aplikasi ditutup (exit code {exit_code})")
     sys.exit(exit_code)
 
