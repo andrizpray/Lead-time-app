@@ -22,6 +22,16 @@ _GRID_COLOR = colors.HexColor("#d1d5db")
 _ACCENT     = colors.HexColor("#1e3a5f")    # judul laporan
 
 _REPORT_COLUMNS: dict[str, list[tuple[str, str]]] = {
+    "Grafik Harian": [
+        ("TGL",                "tgl"),
+        ("DO",                 "no_do"),
+        ("No Shipment",        "no_shipment"),
+        ("Customer",           "customer"),
+        ("Kota/Kab",           "kota_kab"),
+        ("Jenis",              "jenis"),
+        ("Tonase (kg)",        "tonase_total"),
+        ("Shift",              "shift"),
+    ],
     "Harian": [
         ("Shift",               "shift"),
         ("Jumlah DO",           "count_do"),
@@ -67,6 +77,23 @@ def _fmt_lead_time(minutes: float) -> str:
 
 
 def _rows_from_report(data: dict | list, report_type: str) -> list[dict]:
+    if report_type == "Grafik Harian":
+        # Extract DO records from daily_detail_report structure
+        records = data.get("records", [])
+        # Convert Peewee model instances to dicts
+        return [
+            {
+                "tgl": rec.tgl,
+                "no_do": rec.no_do,
+                "no_shipment": rec.no_shipment,
+                "customer": rec.customer,
+                "kota_kab": rec.kota_kab,
+                "jenis": rec.jenis,
+                "tonase_total": rec.tonase_total,
+                "shift": f"Shift {rec.shift}",
+            }
+            for rec in records
+        ]
     if report_type == "Harian":
         total = data.get("total", {})
         return [
