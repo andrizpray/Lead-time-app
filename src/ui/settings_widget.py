@@ -1,5 +1,5 @@
 import os
-from datetime import date as _date
+from datetime import date as _date, datetime as _datetime
 
 from PySide6.QtCore import QDate, Qt, QUrl
 from PySide6.QtGui import QDesktopServices
@@ -17,6 +17,9 @@ from PySide6.QtWidgets import (
     QTableWidgetItem,
     QHeaderView,
     QDateEdit,
+    QScrollArea,
+    QFrame,
+    QSizePolicy,
 )
 
 from src.core import settings
@@ -39,15 +42,32 @@ class SettingsWidget(QWidget):
         self._build_ui()
 
     def _build_ui(self):
+        # Root layout hanya berisi scroll area
         root = QVBoxLayout(self)
-        root.setAlignment(Qt.AlignmentFlag.AlignTop)
-        root.setSpacing(16)
-        root.setContentsMargins(24, 24, 24, 24)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
-        root.addWidget(self._build_company_group())
-        root.addWidget(self._build_shift_group())
-        root.addWidget(self._build_database_group())
-        root.addWidget(self._build_about_group())
+        # Bungkus semua konten dalam QScrollArea agar tidak overflow/overlap
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: #F5F7FA; }")
+
+        inner = QWidget()
+        inner.setStyleSheet("background: #F5F7FA;")
+        inner_layout = QVBoxLayout(inner)
+        inner_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        inner_layout.setSpacing(16)
+        inner_layout.setContentsMargins(24, 24, 24, 24)
+
+        inner_layout.addWidget(self._build_company_group())
+        inner_layout.addWidget(self._build_shift_group())
+        inner_layout.addWidget(self._build_database_group())
+        inner_layout.addWidget(self._build_about_group())
+        inner_layout.addStretch()
+
+        scroll.setWidget(inner)
+        root.addWidget(scroll)
 
     # ------------------------------------------------------------------
     def _build_company_group(self) -> QGroupBox:
@@ -71,7 +91,7 @@ class SettingsWidget(QWidget):
     def _build_shift_group(self) -> QGroupBox:
         box = QGroupBox("Jadwal Shift (per Rentang Tanggal)")
         layout = QVBoxLayout(box)
-        layout.setSpacing(8)
+        layout.setSpacing(10)
 
         hint = QLabel(
             "Setiap baris = satu jadwal shift untuk rentang tanggal tertentu.\n"
@@ -85,7 +105,10 @@ class SettingsWidget(QWidget):
         self._sched_table = QTableWidget()
         self._sched_table.setColumnCount(len(self._SCHED_COLS))
         self._sched_table.setHorizontalHeaderLabels(self._SCHED_COLS)
-        self._sched_table.setMinimumHeight(120)
+        self._sched_table.setMinimumHeight(160)
+        self._sched_table.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred
+        )
         self._sched_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._sched_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self._sched_table.verticalHeader().setVisible(False)
@@ -109,23 +132,35 @@ class SettingsWidget(QWidget):
         self._sched_table.setAlternatingRowColors(True)
         layout.addWidget(self._sched_table)
 
-        btn_row = QHBoxLayout()
+        # Tombol di bawah tabel — diberi container terpisah agar tidak overlap
+        btn_container = QWidget()
+        btn_container.setMinimumHeight(44)
+        btn_row = QHBoxLayout(btn_container)
+        btn_row.setContentsMargins(0, 4, 0, 0)
         btn_row.setSpacing(8)
 
         add_btn = QPushButton("+ Tambah Jadwal")
+        add_btn.setFixedHeight(34)
         add_btn.clicked.connect(self._add_schedule)
+
         del_btn = QPushButton("Hapus Baris")
+        del_btn.setFixedHeight(34)
         del_btn.clicked.connect(self._delete_schedule)
+
         save_btn = QPushButton("Simpan & Re-Kalkulasi")
-        save_btn.setStyleSheet("QPushButton { background-color: #059669; color: white; font-weight: bold; }")
+        save_btn.setFixedHeight(34)
+        save_btn.setStyleSheet(
+            "QPushButton { background-color: #059669; color: white; font-weight: bold; }"
+            "QPushButton:hover { background-color: #047857; }"
+        )
         save_btn.clicked.connect(self._save_shift)
 
         btn_row.addWidget(add_btn)
         btn_row.addWidget(del_btn)
         btn_row.addStretch()
         btn_row.addWidget(save_btn)
-        layout.addLayout(btn_row)
 
+        layout.addWidget(btn_container)
         return box
 
     # ------------------------------------------------------------------
@@ -178,10 +213,11 @@ class SettingsWidget(QWidget):
 
         db_path = cfg.get("db_path", "")
         if not db_path:
-            default = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "..", "data", "leadtime.db")
+            # Gunakan path persisten yang sama dengan database.py
+            default = os.path.join(
+                os.path.expanduser("~"), ".leadtime", "data", "leadtime.db"
             )
-            self._db_path_label.setText(f"{default} (default)")
+            self._db_path_label.setText(f"{os.path.abspath(default)} (default)")
         else:
             self._db_path_label.setText(db_path)
 
@@ -237,7 +273,7 @@ class SettingsWidget(QWidget):
                         QMessageBox.warning(self, "Error", f"Baris {row+1}: Tgl Mulai wajib diisi.")
                         return
                     try:
-                        d = _date.strptime(val, "%d/%m/%Y")
+                        d = _datetime.strptime(val, "%d/%m/%Y")
                         entry[key] = d.strftime("%Y-%m-%d")
                     except ValueError:
                         QMessageBox.warning(self, "Error", f"Baris {row+1}: Format Tgl Mulai salah (DD/MM/YYYY).")
@@ -245,7 +281,7 @@ class SettingsWidget(QWidget):
                 elif key == "tgl_akhir":
                     if val:
                         try:
-                            d = _date.strptime(val, "%d/%m/%Y")
+                            d = _datetime.strptime(val, "%d/%m/%Y")
                             entry[key] = d.strftime("%Y-%m-%d")
                         except ValueError:
                             QMessageBox.warning(self, "Error", f"Baris {row+1}: Format Tgl Akhir salah (DD/MM/YYYY).")

@@ -229,14 +229,20 @@ class _Step2(QWidget):
 
         btn_row = QHBoxLayout()
         self._back_btn = QPushButton("← Kembali")
+        self._back_btn.setFixedHeight(36)
         self._next_btn = QPushButton("Lanjut →")
+        self._next_btn.setFixedHeight(36)
         self._next_btn.setStyleSheet(
             "QPushButton { background:#3b82f6; color:#fff; border-radius:6px; padding:8px 16px; font-weight:bold; }"
         )
         btn_row.addWidget(self._back_btn)
         btn_row.addStretch()
         btn_row.addWidget(self._next_btn)
-        layout.addLayout(btn_row)
+
+        btn_container = QWidget()
+        btn_container.setMinimumHeight(52)
+        btn_container.setLayout(btn_row)
+        layout.addWidget(btn_container)
 
     # ------------------------------------------------------------------
     def populate(self, result: dict):
@@ -501,10 +507,6 @@ class ImportWizardWidget(QWidget):
 
     # ------------------------------------------------------------------
     def _on_save(self):
-        if not self._result["success"] and not self._result["duplicates"]:
-            QMessageBox.warning(self, "Tidak Ada Data", "Tidak ada data untuk disimpan.")
-            return
-
         self._step3.save_button.setEnabled(False)
         self._step3.back_button.setEnabled(False)
         self._step3.progress_bar.setVisible(True)

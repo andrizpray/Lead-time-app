@@ -25,32 +25,54 @@ logger = logging.getLogger(__name__)
 _COL_MAP: dict[str, str] = {
     "tgl": "tgl",
     "tanggal": "tgl",
+    "date": "tgl",
     "#do": "no_do",
     "no do": "no_do",
     "no. do": "no_do",
     "nodo": "no_do",
+    "do": "no_do",
+    "no.do": "no_do",
+    "nomor do": "no_do",
     "no shipment": "no_shipment",
     "no. shipment": "no_shipment",
     "noshipment": "no_shipment",
+    "no.shipment": "no_shipment",
+    "shipment": "no_shipment",
+    "nomor shipment": "no_shipment",
+    "no shpmt": "no_shipment",
+    "no_shipment": "no_shipment",
+    "no_do": "no_do",
     "customer": "customer",
+    "nama customer": "customer",
+    "pelanggan": "customer",
     "kota/kab": "kota_kab",
     "kota kab": "kota_kab",
     "kota": "kota_kab",
     "kab": "kota_kab",
+    "kota/kabupaten": "kota_kab",
     "jenis": "jenis",
+    "jenis barang": "jenis",
     "ekspedisi": "ekspedisi",
     "expedisi": "ekspedisi",
+    "nama ekspedisi": "ekspedisi",
     "jenis truk": "jenis_truk",
     "jenistruk": "jenis_truk",
+    "jenis kendaraan": "jenis_truk",
     "nomor fk": "nomor_fk",
     "no fk": "nomor_fk",
     "nofk": "nomor_fk",
+    "no.fk": "nomor_fk",
     "loading mulai": "loading_mulai",
     "loadingmulai": "loading_mulai",
     "mulai": "loading_mulai",
+    "jam mulai": "loading_mulai",
+    "start": "loading_mulai",
     "loading selesai": "loading_selesai",
     "loadingselesai": "loading_selesai",
     "selesai": "loading_selesai",
+    "jam selesai": "loading_selesai",
+    "finish": "loading_selesai",
+    "end": "loading_selesai",
     "tonase (roll)": "tonase_roll",
     "tonase roll": "tonase_roll",
     "tonaseroll": "tonase_roll",
@@ -71,7 +93,12 @@ _TARGET_SHEET = "LOADING TIME 2026"
 # ---------------------------------------------------------------------------
 
 def _normalise_col(name: Any) -> str:
-    return str(name).strip().lower()
+    """Normalise column name: strip, lowercase, remove leading digits/dots/spaces."""
+    s = str(name).strip().lower()
+    # Hapus prefix nomor urut seperti "1. no do" -> "no do", "1) no do" -> "no do"
+    import re
+    s = re.sub(r"^\d+[\.\)\s]+", "", s).strip()
+    return s
 
 
 def _find_header_row(xl: pd.ExcelFile, sheet_name: str, max_scan: int = 15) -> int:
@@ -93,6 +120,7 @@ def _resolve_columns(df: pd.DataFrame) -> dict[str, str]:
         key = _normalise_col(col)
         if key in _COL_MAP:
             mapping[col] = _COL_MAP[key]
+    logger.info("Column mapping resolved: %s", {str(k): v for k, v in mapping.items()})
     return mapping
 
 
@@ -217,6 +245,10 @@ def parse_excel(path: str) -> dict:
         df_raw = xl.parse(sheet_name, header=header_row, dtype=object)
     except Exception as exc:
         return {"success": [], "duplicates": [], "errors": [{"row": -1, "reason": f"Cannot parse sheet: {exc}"}]}
+
+    # Validasi: file Excel hanya berisi header tanpa data
+    if df_raw.empty:
+        return {"success": [], "duplicates": [], "errors": [{"row": -1, "reason": "File Excel kosong (hanya header, tidak ada data)"}]}
 
     # Check for sub-headers (LOADING TIME -> MULAI/SELESAI pattern).
     # If the first data row contains "MULAI"/"SELESAI", its values are really

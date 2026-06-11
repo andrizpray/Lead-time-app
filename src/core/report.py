@@ -10,7 +10,7 @@ class ReportGenerator:
         Laporan detail per DO dalam rentang tanggal, lengkap dengan:
         - Baris per DO (tgl, no_do, no_shipment, customer, kota_kab, jenis, tonase_total, shift)
         - Agregat per hari per shift (count_do, total_tonase)
-        - Total keseluruhan
+        - Total keseluruhan termasuk avg_lead_time
         """
         # --- detail records ---
         records = list(
@@ -26,6 +26,7 @@ class ReportGenerator:
                 DORecord.shift,
                 fn.COUNT(DORecord.id).alias("cnt"),
                 fn.SUM(DORecord.tonase_total).alias("sum_ton"),
+                fn.SUM(DORecord.lead_time_menit).alias("sum_lt"),
             )
             .where(DORecord.tgl.between(tgl_awal, tgl_akhir))
             .group_by(DORecord.tgl, DORecord.shift)
@@ -33,14 +34,20 @@ class ReportGenerator:
             .namedtuples()
         )
 
-        # Build dict: date -> {shift -> {cnt, ton}}
+        # Build dict: date -> {shift -> {cnt, ton, sum_lt}}
         from collections import defaultdict
-        daily_map: dict = defaultdict(lambda: {1: {"cnt": 0, "ton": 0.0},
-                                                2: {"cnt": 0, "ton": 0.0},
-                                                3: {"cnt": 0, "ton": 0.0}})
+        daily_map: dict = defaultdict(lambda: {
+            1: {"cnt": 0, "ton": 0.0, "sum_lt": 0.0},
+            2: {"cnt": 0, "ton": 0.0, "sum_lt": 0.0},
+            3: {"cnt": 0, "ton": 0.0, "sum_lt": 0.0},
+        })
         for r in daily_shift:
             s = r.shift or 1
-            daily_map[r.tgl][s] = {"cnt": r.cnt or 0, "ton": float(r.sum_ton or 0.0)}
+            daily_map[r.tgl][s] = {
+                "cnt": r.cnt or 0,
+                "ton": float(r.sum_ton or 0.0),
+                "sum_lt": float(r.sum_lt or 0.0),
+            }
 
         # Sorted list of dates
         sorted_dates = sorted(daily_map.keys())
@@ -48,6 +55,8 @@ class ReportGenerator:
         daily_stats = []
         for d in sorted_dates:
             sh = daily_map[d]
+            total_do_day = sh[1]["cnt"] + sh[2]["cnt"] + sh[3]["cnt"]
+            total_lt_day = sh[1]["sum_lt"] + sh[2]["sum_lt"] + sh[3]["sum_lt"]
             daily_stats.append({
                 "tgl": d,
                 "shift_1_do":  sh[1]["cnt"],
@@ -56,12 +65,15 @@ class ReportGenerator:
                 "shift_2_ton": sh[2]["ton"],
                 "shift_3_do":  sh[3]["cnt"],
                 "shift_3_ton": sh[3]["ton"],
-                "total_do":    sh[1]["cnt"] + sh[2]["cnt"] + sh[3]["cnt"],
+                "total_do":    total_do_day,
                 "total_ton":   sh[1]["ton"] + sh[2]["ton"] + sh[3]["ton"],
+                "avg_lead_time": total_lt_day / total_do_day if total_do_day else 0.0,
             })
 
         total_do = sum(d["total_do"] for d in daily_stats)
         total_ton = sum(d["total_ton"] for d in daily_stats)
+        total_lt = sum(d["avg_lead_time"] * d["total_do"] for d in daily_stats)
+        avg_lead_time = total_lt / total_do if total_do else 0.0
 
         return {
             "tgl_awal": tgl_awal,
@@ -70,6 +82,7 @@ class ReportGenerator:
             "daily_stats": daily_stats,
             "total_do": total_do,
             "total_ton": total_ton,
+            "avg_lead_time": avg_lead_time,
         }
 
     @staticmethod

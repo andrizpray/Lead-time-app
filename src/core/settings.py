@@ -24,8 +24,10 @@ DEFAULT_CONFIG = {
 CONFIG_DIR = os.path.join(os.path.expanduser("~"), ".leadtime")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
 
+# Path default database — HARUS sama dengan yang digunakan di database.py
+# Disimpan di lokasi persisten, bukan di dalam bundle exe
 _DEFAULT_DB_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "data", "leadtime.db"
+    os.path.expanduser("~"), ".leadtime", "data", "leadtime.db"
 )
 
 

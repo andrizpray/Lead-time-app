@@ -180,8 +180,8 @@ class ReportWidget(QWidget):
 
         vbox.addWidget(self._build_filter_panel())
         vbox.addLayout(self._build_cards_row())
-        vbox.addWidget(self._build_table_section())
-        vbox.addWidget(self._build_chart_section())   # grafik harian
+        vbox.addWidget(self._build_chart_section())   # grafik harian (di atas tabel detail)
+        vbox.addWidget(self._build_table_section())   # tabel — untuk semua tipe laporan
         vbox.addLayout(self._build_export_row())
         vbox.addStretch()
 
@@ -367,11 +367,11 @@ class ReportWidget(QWidget):
         return row
 
     def _build_table_section(self) -> QFrame:
-        frame = QFrame()
-        frame.setStyleSheet("QFrame { background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0; }")
-        _drop_shadow(frame, blur=10, dy=2, alpha=25)
+        self._table_section_frame = QFrame()
+        self._table_section_frame.setStyleSheet("QFrame { background: #FFFFFF; border-radius: 10px; border: 1px solid #E2E8F0; }")
+        _drop_shadow(self._table_section_frame, blur=10, dy=2, alpha=25)
 
-        lay = QVBoxLayout(frame)
+        lay = QVBoxLayout(self._table_section_frame)
         lay.setContentsMargins(0, 0, 0, 0)
 
         self._table = QTableWidget()
@@ -380,6 +380,8 @@ class ReportWidget(QWidget):
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.horizontalHeader().setStretchLastSection(True)
         self._table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        self._table.setMinimumHeight(220)
+        self._table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._table.setStyleSheet("""
             QTableWidget {
                 border: none;
@@ -401,7 +403,7 @@ class ReportWidget(QWidget):
         """)
 
         lay.addWidget(self._table)
-        return frame
+        return self._table_section_frame
 
     def _build_export_row(self) -> QHBoxLayout:
         row = QHBoxLayout()
@@ -463,9 +465,13 @@ class ReportWidget(QWidget):
         self._lbl_tahun.setVisible(is_bulanan)
         self._spin_tahun.setVisible(is_bulanan)
 
-        # Grafik hanya tampil untuk tipe Grafik Harian
+        # Grafik hanya tampil untuk tipe Grafik Harian (dan hanya setelah Generate)
         if hasattr(self, "_chart_container"):
-            self._chart_container.setVisible(is_grafik)
+            self._chart_container.setVisible(False)
+
+        # Sembunyikan tabel saat type berubah — akan muncul lagi setelah Generate
+        if hasattr(self, "_table_section_frame"):
+            self._table_section_frame.setVisible(False)
 
     # ------------------------------------------------------------------
     # Generate
@@ -526,20 +532,20 @@ class ReportWidget(QWidget):
         data = ReportGenerator.daily_detail_report(tgl_awal, tgl_akhir)
         self._last_data = data
 
-        self._update_cards(data["total_do"], data["total_ton"], 0.0)
+        self._update_cards(data["total_do"], data["total_ton"], data["avg_lead_time"])
 
-        # Calculate avg lead time from records
-        records = data["records"]
-        if records:
-            total_lt = sum(r.lead_time_menit for r in records if r.lead_time_menit)
-            avg_lt = total_lt / len(records) if records else 0.0
-            h, m_desc = divmod(int(avg_lt), 60)
-            lt_str = f"{h}j {m_desc}m" if h else f"{m_desc} mnt"
-            self._card_lt.set_value(lt_str)
-        else:
-            self._card_lt.set_value("—")
+        # --- render grafik dulu (di atas) ---
+        daily = data["daily_stats"]
+        date_labels = [
+            d["tgl"].strftime("%d/%m/%y") if hasattr(d["tgl"], "strftime") else str(d["tgl"])
+            for d in daily
+        ]
+        self._render_shift_do_chart(daily, date_labels, tgl_awal, tgl_akhir)
+        self._render_shift_ton_chart(daily, date_labels, tgl_awal, tgl_akhir)
+        self._render_trend_chart(daily, date_labels, tgl_awal, tgl_akhir)
+        self._chart_container.setVisible(True)
 
-        # --- isi tabel detail ---
+        # --- isi tabel detail (di bawah grafik) ---
         records = data["records"]
         cols = self._DETAIL_COLS
         self._table.clear()
@@ -548,7 +554,6 @@ class ReportWidget(QWidget):
         self._table.setHorizontalHeaderLabels([c[0] for c in cols])
 
         jenis_colors = {"ROLL": QColor("#FFF9C4"), "SHEET": QColor("#E8F5E9")}
-        dup_no_do: set[str] = set()
         # tandai no_do duplikat
         from collections import Counter
         no_do_counts = Counter(r.no_do for r in records)
@@ -598,16 +603,51 @@ class ReportWidget(QWidget):
             self._table.setItem(total_row, col_idx, item)
 
         self._table.resizeColumnsToContents()
+        self._table_section_frame.setVisible(True)
 
-        # --- render kedua grafik ---
-        daily = data["daily_stats"]
-        date_labels = [
-            d["tgl"].strftime("%d/%m/%y") if hasattr(d["tgl"], "strftime") else str(d["tgl"])
-            for d in daily
-        ]
-        self._render_shift_do_chart(daily, date_labels, tgl_awal, tgl_akhir)
-        self._render_shift_ton_chart(daily, date_labels, tgl_awal, tgl_akhir)
-        self._render_trend_chart(daily, date_labels, tgl_awal, tgl_akhir)
+    def _draw_trend_labels(self):
+        """Gambar label tonase manual di atas titik grafik trend dengan format angka penuh."""
+        from PySide6.QtWidgets import QGraphicsTextItem
+        from PySide6.QtCore import QPointF
+
+        daily = getattr(self, "_trend_daily_data", [])
+        if not daily:
+            return
+
+        chart = self._chart_trend
+        scene = self._view_trend.scene()
+        if not scene:
+            return
+
+        # Hapus label lama (tag-nya QGraphicsTextItem dengan objectName "trend_label")
+        for item in scene.items():
+            if isinstance(item, QGraphicsTextItem) and item.data(0) == "trend_label":
+                scene.removeItem(item)
+
+        series = chart.series()
+        if not series:
+            return
+        line_series = series[0]
+
+        lbl_font = QFont()
+        lbl_font.setPointSize(9)
+        lbl_font.setBold(True)
+
+        for i, d in enumerate(daily):
+            val = d["total_ton"]
+            # Konversi koordinat data ke koordinat scene
+            pt = chart.mapToPosition(QPointF(i, val), line_series)
+
+            text = f"{val:,.0f}"
+            label = QGraphicsTextItem(text)
+            label.setFont(lbl_font)
+            label.setDefaultTextColor(QColor("#E53935"))
+            label.setData(0, "trend_label")
+
+            # Posisikan label di atas titik
+            label.setPos(pt.x() - label.boundingRect().width() / 2,
+                         pt.y() - label.boundingRect().height() - 4)
+            scene.addItem(label)
 
     def _render_shift_do_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
         """Grafik bar: DO Count per Shift (SHIFT 1 biru, SHIFT 2 abu, SHIFT 3 oranye)."""
@@ -651,10 +691,17 @@ class ReportWidget(QWidget):
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
 
+        # Hitung max per kategori (bukan total stacked) untuk padding label
+        max_val_do = max(
+            (max(d["shift_1_do"], d["shift_2_do"], d["shift_3_do"]) for d in daily),
+            default=1
+        )
         axis_y = QValueAxis()
+        axis_y.setRange(0, max(max_val_do * 1.4, 1.0))   # 40% padding agar label tidak terpotong, minimal 1.0
         axis_y.setTitleText("Jumlah DO")
         tf = QFont(); tf.setPointSize(9)
         axis_y.setTitleFont(tf)
+        axis_y.setLabelFormat("%d")
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 
@@ -677,10 +724,13 @@ class ReportWidget(QWidget):
 
         set_s1 = QBarSet("SHIFT 1 QTY")
         set_s1.setColor(QColor("#F44336"))
+        set_s1.setLabelColor(QColor("#000000"))
         set_s2 = QBarSet("SHIFT 2 QTY")
         set_s2.setColor(QColor("#FFEB3B"))
+        set_s2.setLabelColor(QColor("#000000"))
         set_s3 = QBarSet("SHIFT 3 QTY")
         set_s3.setColor(QColor("#795548"))
+        set_s3.setLabelColor(QColor("#FFFFFF"))
 
         for d in daily:
             set_s1.append(d["shift_1_ton"])
@@ -703,10 +753,17 @@ class ReportWidget(QWidget):
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
 
+        # Hitung max per kategori untuk padding label
+        max_val_ton = max(
+            (max(d["shift_1_ton"], d["shift_2_ton"], d["shift_3_ton"]) for d in daily),
+            default=1.0
+        )
         axis_y = QValueAxis()
+        axis_y.setRange(0, max(max_val_ton * 1.4, 1.0))   # 40% padding agar label tidak terpotong, minimal 1.0
         axis_y.setTitleText("Tonase (kg)")
         tf = QFont(); tf.setPointSize(9)
         axis_y.setTitleFont(tf)
+        axis_y.setLabelFormat("%.0f")
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 
@@ -714,7 +771,7 @@ class ReportWidget(QWidget):
         chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
 
     def _render_trend_chart(self, daily: list, labels: list, tgl_awal, tgl_akhir):
-        """Grafik line: total DO per hari dengan label nilai merah di setiap titik."""
+        """Grafik line: total Tonase per hari dengan label nilai merah di setiap titik."""
         chart = self._chart_trend
         chart.removeAllSeries()
         for ax in chart.axes():
@@ -728,13 +785,13 @@ class ReportWidget(QWidget):
         chart.setTitleFont(f)
 
         series = QLineSeries()
-        series.setName("Total DO")
+        series.setName("Total Tonase (kg)")
         pen = QPen(QColor("#1565C0"))
         pen.setWidth(2)
         series.setPen(pen)
 
         for i, d in enumerate(daily):
-            series.append(i, d["total_do"])
+            series.append(i, d["total_ton"])
 
         chart.addSeries(series)
 
@@ -745,26 +802,30 @@ class ReportWidget(QWidget):
         chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         series.attachAxis(axis_x)
 
-        all_do = [d["total_do"] for d in daily]
-        max_do = max(all_do) if all_do else 10
+        all_ton = [d["total_ton"] for d in daily]
+        max_ton = max(all_ton) if all_ton else 1000.0
         axis_y = QValueAxis()
-        axis_y.setRange(0, max_do * 1.25)
+        axis_y.setRange(0, max(max_ton * 1.25, 1.0))
         axis_y.setTickCount(6)
+        axis_y.setTitleText("Tonase (kg)")
         tf = QFont(); tf.setPointSize(9)
         axis_y.setTitleFont(tf)
+        axis_y.setLabelFormat("%.0f")
         chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
         series.attachAxis(axis_y)
 
-        # Tampilkan label nilai di setiap titik (merah & tebal)
-        series.setPointLabelsVisible(True)
-        series.setPointLabelsColor(QColor("#E53935"))
-        lbl_font = QFont()
-        lbl_font.setPointSize(9)
-        lbl_font.setBold(True)
-        series.setPointLabelsFont(lbl_font)
-        series.setPointLabelsFormat("@yPoint")
-
+        # Sembunyikan label bawaan Qt (selalu pakai notasi saintifik untuk angka besar)
+        series.setPointLabelsVisible(False)
         chart.legend().hide()
+
+        # Gambar label manual dengan format angka penuh menggunakan QChartView overlay
+        # Simpan data untuk dirender ulang saat chart selesai animasi
+        self._trend_daily_data = daily
+        self._trend_labels = labels
+
+        # Gunakan callout approach: tambah label via scene setelah chart dirender
+        from PySide6.QtCore import QTimer
+        QTimer.singleShot(600, self._draw_trend_labels)
 
     # ------------------------------------------------------------------
     # Report renderers (existing)
@@ -777,6 +838,7 @@ class ReportWidget(QWidget):
         total = data["total"]
         self._update_cards(total["count_do"], total["total_tonase"], total["avg_lead_time"])
 
+        self._chart_container.setVisible(False)
         cols = _COLUMNS["Harian"]
         rows = [
             {"shift": "Shift 1", **data["shift_1"]},
@@ -795,6 +857,7 @@ class ReportWidget(QWidget):
         avg_lt = sum(r["avg_lead_time"] * r["total_do"] for r in rows) / total_do if total_do else 0.0
         self._update_cards(total_do, total_ton, avg_lt)
 
+        self._chart_container.setVisible(False)
         cols = _COLUMNS["Mingguan"]
         self._fill_table(cols, rows)
 
@@ -804,6 +867,7 @@ class ReportWidget(QWidget):
 
         self._update_cards(data["total_do"], data["total_tonase"], data["avg_lead_time"])
 
+        self._chart_container.setVisible(False)
         cols = _COLUMNS["Bulanan"]
         self._fill_table(cols, data["per_customer"])
 
@@ -816,6 +880,7 @@ class ReportWidget(QWidget):
         avg_lt = sum(r["avg_lead_time"] * r["count_do"] for r in rows) / total_do if total_do else 0.0
         self._update_cards(total_do, total_ton, avg_lt)
 
+        self._chart_container.setVisible(False)
         cols = _COLUMNS["Per Customer"]
         self._fill_table(cols, rows)
 
@@ -828,6 +893,7 @@ class ReportWidget(QWidget):
         avg_lt = sum(r["avg_lead_time"] * r["count_do"] for r in rows) / total_do if total_do else 0.0
         self._update_cards(total_do, total_ton, avg_lt)
 
+        self._chart_container.setVisible(False)
         cols = _COLUMNS["Per Ekspedisi"]
         self._fill_table(cols, rows)
 
@@ -871,6 +937,8 @@ class ReportWidget(QWidget):
                 self._table.setItem(row_idx, col_idx, item)
 
         self._table.resizeColumnsToContents()
+        # Tampilkan tabel setelah data terisi
+        self._table_section_frame.setVisible(True)
 
     # ------------------------------------------------------------------
     # Export actions

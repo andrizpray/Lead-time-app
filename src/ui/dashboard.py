@@ -574,7 +574,7 @@ class DashboardWidget(QWidget):
         axis_y_roll.setTitleText("Roll (kg)")
         axis_y_roll.setTitleFont(_label_font(9))
         axis_y_roll.setLabelFormat("%.0f")
-        axis_y_roll.setRange(0, max(max_roll_val * 1.1, 1.0))
+        axis_y_roll.setRange(0, max_roll_val * 1.1)
         chart.addAxis(axis_y_roll, Qt.AlignmentFlag.AlignLeft)
         series_roll.attachAxis(axis_y_roll)
 
